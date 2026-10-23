@@ -1,0 +1,256 @@
+{
+  "manifest": "data/manifests/tune.csv",
+  "n_frames": 80,
+  "labels_changed_by_audit": 2,
+  "questions_per_call": 9,
+  "state": "A single frame from a wildlife camera trap.",
+  "signature": "085b912fa3b5",
+  "decider_wall_latency_ms_p50": 1528.0,
+  "presence": [
+    {
+      "wording": "p_criteria",
+      "instructions": "Is there an animal anywhere in this photo, even partly hidden or at the edge?",
+      "criteria": true,
+      "inverted": false,
+      "n_pos": 43,
+      "n_neg": 32,
+      "auc": 0.9535,
+      "mean_pos": 0.869,
+      "mean_neg": 0.411,
+      "best_accuracy": 0.9067,
+      "best_threshold": 0.7811,
+      "ref_threshold": 0.35,
+      "recall_at_ref": 1.0,
+      "neg_below_ref": 0.5,
+      "zero_miss_threshold": 0.37,
+      "neg_below_zero_miss": 0.5312,
+      "one_miss_threshold": 0.44,
+      "neg_below_one_miss": 0.5625
+    },
+    {
+      "wording": "p_plain",
+      "instructions": "Is there an animal anywhere in this photo, even partly hidden or at the edge?",
+      "criteria": false,
+      "inverted": false,
+      "n_pos": 43,
+      "n_neg": 32,
+      "auc": 0.9506,
+      "mean_pos": 0.759,
+      "mean_neg": 0.236,
+      "best_accuracy": 0.8933,
+      "best_threshold": 0.4715,
+      "ref_threshold": 0.35,
+      "recall_at_ref": 0.8837,
+      "neg_below_ref": 0.8438,
+      "zero_miss_threshold": 0.18,
+      "neg_below_zero_miss": 0.5312,
+      "one_miss_threshold": 0.22,
+      "neg_below_one_miss": 0.5625
+    },
+    {
+      "wording": "p_short",
+      "instructions": "Is there an animal in this photo?",
+      "criteria": false,
+      "inverted": false,
+      "n_pos": 43,
+      "n_neg": 32,
+      "auc": 0.9448,
+      "mean_pos": 0.751,
+      "mean_neg": 0.217,
+      "best_accuracy": 0.88,
+      "best_threshold": 0.4361,
+      "ref_threshold": 0.35,
+      "recall_at_ref": 0.8372,
+      "neg_below_ref": 0.8125,
+      "zero_miss_threshold": 0.16,
+      "neg_below_zero_miss": 0.5,
+      "one_miss_threshold": 0.18,
+      "neg_below_one_miss": 0.5625
+    },
+    {
+      "wording": "p_criteria_hard",
+      "instructions": "Is there an animal or bird anywhere in this photo, even small, far away, dark or at the edge?",
+      "criteria": true,
+      "inverted": false,
+      "n_pos": 43,
+      "n_neg": 32,
+      "auc": 0.9477,
+      "mean_pos": 0.887,
+      "mean_neg": 0.539,
+      "best_accuracy": 0.8933,
+      "best_threshold": 0.7784,
+      "ref_threshold": 0.35,
+      "recall_at_ref": 1.0,
+      "neg_below_ref": 0.125,
+      "zero_miss_threshold": 0.52,
+      "neg_below_zero_miss": 0.5312,
+      "one_miss_threshold": 0.52,
+      "neg_below_one_miss": 0.5312
+    },
+    {
+      "wording": "p_empty_inverted",
+      "instructions": "Is this photo empty, showing only the background scene?",
+      "criteria": true,
+      "inverted": true,
+      "n_pos": 43,
+      "n_neg": 32,
+      "auc": 0.9484,
+      "mean_pos": 0.84,
+      "mean_neg": 0.321,
+      "best_accuracy": 0.9067,
+      "best_threshold": 0.6544,
+      "ref_threshold": 0.35,
+      "recall_at_ref": 0.9302,
+      "neg_below_ref": 0.625,
+      "zero_miss_threshold": 0.25,
+      "neg_below_zero_miss": 0.4375,
+      "one_miss_threshold": 0.26,
+      "neg_below_one_miss": 0.4688
+    }
+  ],
+  "escalation": [
+    {
+      "wording": "e_plain",
+      "instructions": "Is there a person or a vehicle in this photo?",
+      "criteria": false,
+      "inverted": false,
+      "n_pos": 5,
+      "n_neg": 75,
+      "auc": 1.0,
+      "mean_pos": 0.771,
+      "mean_neg": 0.091,
+      "best_accuracy": 1.0,
+      "best_threshold": 0.3863,
+      "ref_threshold": 0.5,
+      "recall_at_ref": 0.8,
+      "neg_below_ref": 1.0,
+      "zero_miss_threshold": 0.38,
+      "neg_below_zero_miss": 1.0,
+      "one_miss_threshold": 0.82,
+      "neg_below_one_miss": 1.0,
+      "max_neg": 0.1774,
+      "min_pos": 0.3863,
+      "false_alerts_at_ref": 0
+    },
+    {
+      "wording": "e_criteria",
+      "instructions": "Is there a person or a vehicle in this photo?",
+      "criteria": true,
+      "inverted": false,
+      "n_pos": 5,
+      "n_neg": 75,
+      "auc": 1.0,
+      "mean_pos": 0.919,
+      "mean_neg": 0.08,
+      "best_accuracy": 1.0,
+      "best_threshold": 0.7409,
+      "ref_threshold": 0.5,
+      "recall_at_ref": 1.0,
+      "neg_below_ref": 1.0,
+      "zero_miss_threshold": 0.74,
+      "neg_below_zero_miss": 1.0,
+      "one_miss_threshold": 0.95,
+      "neg_below_one_miss": 1.0,
+      "max_neg": 0.3322,
+      "min_pos": 0.7409,
+      "false_alerts_at_ref": 0
+    },
+    {
+      "wording": "e_human_activity",
+      "instructions": "Is there any sign of people in this photo: a person, a vehicle, or headlights?",
+      "criteria": true,
+      "inverted": false,
+      "n_pos": 5,
+      "n_neg": 75,
+      "auc": 1.0,
+      "mean_pos": 0.701,
+      "mean_neg": 0.12,
+      "best_accuracy": 1.0,
+      "best_threshold": 0.5028,
+      "ref_threshold": 0.5,
+      "recall_at_ref": 1.0,
+      "neg_below_ref": 1.0,
+      "zero_miss_threshold": 0.5,
+      "neg_below_zero_miss": 1.0,
+      "one_miss_threshold": 0.66,
+      "neg_below_one_miss": 1.0,
+      "max_neg": 0.3215,
+      "min_pos": 0.5028,
+      "false_alerts_at_ref": 0
+    }
+  ],
+  "questions": {
+    "p_criteria": {
+      "type": "noul",
+      "instructions": "Is there an animal anywhere in this photo, even partly hidden or at the edge?",
+      "criteria": {
+        "true": "an animal or part of one is visible",
+        "false": "only vegetation, ground, sky, or camera artefacts"
+      }
+    },
+    "p_plain": {
+      "type": "noul",
+      "instructions": "Is there an animal anywhere in this photo, even partly hidden or at the edge?"
+    },
+    "p_short": {
+      "type": "noul",
+      "instructions": "Is there an animal in this photo?"
+    },
+    "p_criteria_hard": {
+      "type": "noul",
+      "instructions": "Is there an animal or bird anywhere in this photo, even small, far away, dark or at the edge?",
+      "criteria": {
+        "true": "an animal or bird, or any part of one (eyes, legs, tail, body), is visible, including blurred, distant or infrared-lit ones",
+        "false": "only vegetation, ground, rocks, sky, shadows, or camera artefacts such as glare, rain, dust or motion blur"
+      }
+    },
+    "p_empty_inverted": {
+      "type": "noul",
+      "instructions": "Is this photo empty, showing only the background scene?",
+      "criteria": {
+        "true": "only vegetation, ground, sky, or camera artefacts; no animal, person or vehicle",
+        "false": "an animal, person or vehicle, or part of one, is visible"
+      }
+    },
+    "e_plain": {
+      "type": "noul",
+      "instructions": "Is there a person or a vehicle in this photo?"
+    },
+    "e_criteria": {
+      "type": "noul",
+      "instructions": "Is there a person or a vehicle in this photo?",
+      "criteria": {
+        "true": "a person, car, truck, motorbike or other vehicle, or part of one, is visible",
+        "false": "only animals, vegetation, ground, sky, or camera artefacts"
+      }
+    },
+    "e_human_activity": {
+      "type": "noul",
+      "instructions": "Is there any sign of people in this photo: a person, a vehicle, or headlights?",
+      "criteria": {
+        "true": "a person, a vehicle, or vehicle headlights are visible",
+        "false": "only animals and the natural scene"
+      }
+    },
+    "difficulty": {
+      "type": "choice",
+      "instructions": "How easy is the subject to see?",
+      "criteria": {
+        "clear": "the subject is large, lit and in focus",
+        "hard": "the subject is small, dark, blurred, infrared or partly hidden"
+      }
+    }
+  },
+  "frozen": {
+    "skip_below": 0.37,
+    "small_above": 0.62,
+    "escalate_above": 0.54,
+    "chosen_wording": "p_criteria",
+    "chosen_escalate_wording": "e_criteria",
+    "method": "Tuning set only. Wording: highest AUC (escalation ties broken by the widest gap between classes). skip_below: highest 0.01 grid value with zero tuning animals scoring below it (miss budget 0; lowest animal score 0.376). small_above: midpoint of the gap between the highest-scoring empty frame Decider called clear (0.347) and the lowest-scoring clear animal frame above it (0.888). escalate_above: midpoint of the gap between the highest non-person/vehicle frame (0.332) and the lowest person/vehicle frame (0.741), labels audited by eye where CCT marks people as empty.",
+    "n_tune": 80,
+    "n_tune_animal": 43,
+    "n_tune_empty": 32,
+    "n_tune_person_or_vehicle": 5
+  }
+}
