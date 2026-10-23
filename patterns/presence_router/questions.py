@@ -24,7 +24,15 @@ def presence_question(target: str = "an animal", hint: str = "even partly hidden
 
 
 def escalate_question(subject: str = "a person or a vehicle") -> dict:
-    return {"type": "noul", "instructions": f"Is there {subject} in this photo?"}
+    if subject == "a person or a vehicle":
+        true = "a person, car, truck, motorbike or other vehicle, or part of one, is visible"
+    else:
+        true = f"{subject} or part of one is visible"
+    return {
+        "type": "noul",
+        "instructions": f"Is there {subject} in this photo?",
+        "criteria": {"true": true, "false": "only animals, vegetation, ground, sky, or camera artefacts"},
+    }
 
 
 def difficulty_question() -> dict:
