@@ -260,7 +260,8 @@ def difficulty_finding(fs: list[dict]) -> dict:
 def dataset_stats() -> dict | None:
     path = ROOT / "data/caltech_images_20210113.json"
     if not path.exists():
-        return None
+        previous = ROOT / "results/metrics.json"
+        return json.loads(previous.read_text()).get("dataset") if previous.exists() else None
     d = json.loads(path.read_text())
     cats = {c["id"]: c["name"] for c in d["categories"]}
     per: dict = {}
@@ -574,7 +575,7 @@ def write_markdown(m: dict) -> str:
         f"({h['n_empty']} empty, {h['n_animal']} animal, {h['n_vehicle']} car), in {b['n_sequences']} camera bursts with "
         f"{b['n_burst_frames']} frames in all. Vehicle set: {v1['vehicle_set']['n_frames']} `car` frames from held-out locations. "
         "One Decider call per frame, the same 3-question production call for every frame. "
-        "Thresholds were set on the tuning set only and frozen before the held-out run. Small set; 0 means no errors on this set, not solved.",
+        "Threshold values were set on the tuning set only. v1 was frozen before its held-out run; the v2 policy form was chosen after seeing v1's held-out errors, so v2's held-out figures are a second look at the same frames. Small set; 0 means no errors on this set, not solved.",
         "",
     ]
     if m.get("dataset"):

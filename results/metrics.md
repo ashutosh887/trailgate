@@ -1,6 +1,6 @@
 # Trailgate evaluation
 
-Held-out set: 600 Caltech Camera Traps frames from camera locations never used for tuning, natural mix (310 empty, 271 animal, 19 car), in 599 camera bursts with 1079 frames in all. Vehicle set: 40 `car` frames from held-out locations. One Decider call per frame, the same 3-question production call for every frame. Thresholds were set on the tuning set only and frozen before the held-out run. Small set; 0 means no errors on this set, not solved.
+Held-out set: 600 Caltech Camera Traps frames from camera locations never used for tuning, natural mix (310 empty, 271 animal, 19 car), in 599 camera bursts with 1079 frames in all. Vehicle set: 40 `car` frames from held-out locations. One Decider call per frame, the same 3-question production call for every frame. Threshold values were set on the tuning set only. v1 was frozen before its held-out run; the v2 policy form was chosen after seeing v1's held-out errors, so v2's held-out figures are a second look at the same frames. Small set; 0 means no errors on this set, not solved.
 
 Full CCT label file (`caltech_images_20210113.json`): 125,745 of 243,100 images are empty (51.7%; lila.science's summary says about 70%). The label set has no person class; CCT labels whole bursts.
 
