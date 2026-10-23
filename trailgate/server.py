@@ -343,7 +343,7 @@ def replay_result(file_name: str, cache: dict[str, dict]) -> dict:
     result.update(tier=route.tier.value, reason=route.reason)
     result["burst"] = [
         {"file_name": f, "present": r.present, "escalate": r.escalate, "self": f == file_name, "thumb": f"/thumb/{f}"}
-        for f, r in zip(siblings, routes)
+        for f, r in zip(siblings, routes, strict=False)
     ]
     return result
 
@@ -505,7 +505,7 @@ class LiveTriage:
                         "self": p == path,
                         "thumb": f"/thumb/{p.name}",
                     }
-                    for p, r in zip(paths, self.routes)
+                    for p, r in zip(paths, self.routes, strict=False)
                 ]
         return data
 

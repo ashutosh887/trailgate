@@ -69,8 +69,8 @@ def main() -> dict:
             anchor_seq[b["file_name"]] = b["seq_id"]
     for r in anchors:
         seq_label[anchor_seq[r["file_name"]]] = audit.get(r["file_name"], r["label"])
-    animal_max = sorted(max(seq_scores[s]) for s, l in seq_label.items() if l not in NON_ANIMAL)
-    empty_max = [max(seq_scores[s]) for s, l in seq_label.items() if l == "empty"]
+    animal_max = sorted(max(seq_scores[s]) for s, lab in seq_label.items() if lab not in NON_ANIMAL)
+    empty_max = [max(seq_scores[s]) for s, lab in seq_label.items() if lab == "empty"]
     skip_below = int(animal_max[0] / STEP + 1e-9) * STEP
     frame_zero_miss = int(min(p for p, a in frames if a) / STEP + 1e-9) * STEP
 

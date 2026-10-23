@@ -35,16 +35,48 @@ NOVA_IMAGE_TOKENS: tuple[tuple[int, int, int], ...] = (
 )
 
 SPECIES = (
-    "opossum", "coyote", "rabbit", "deer", "raccoon", "bird", "bobcat", "cat", "car", "dog", "squirrel",
-    "rodent", "cow", "fox", "skunk", "lizard", "mountain_lion", "badger", "insect", "bat", "pig",
+    "opossum",
+    "coyote",
+    "rabbit",
+    "deer",
+    "raccoon",
+    "bird",
+    "bobcat",
+    "cat",
+    "car",
+    "dog",
+    "squirrel",
+    "rodent",
+    "cow",
+    "fox",
+    "skunk",
+    "lizard",
+    "mountain_lion",
+    "badger",
+    "insect",
+    "bat",
+    "pig",
 )
 ANSWERS = (*SPECIES, "empty", "unknown")
 SYNONYMS = {
-    "mountain lion": "mountain_lion", "cougar": "mountain_lion", "puma": "mountain_lion",
-    "rat": "rodent", "mouse": "rodent", "mice": "rodent", "woodrat": "rodent", "gopher": "rodent",
-    "vehicle": "car", "truck": "car", "suv": "car", "jeep": "car",
-    "hare": "rabbit", "jackrabbit": "rabbit", "cottontail": "rabbit",
-    "none": "empty", "nothing": "empty", "no animal": "empty",
+    "mountain lion": "mountain_lion",
+    "cougar": "mountain_lion",
+    "puma": "mountain_lion",
+    "rat": "rodent",
+    "mouse": "rodent",
+    "mice": "rodent",
+    "woodrat": "rodent",
+    "gopher": "rodent",
+    "vehicle": "car",
+    "truck": "car",
+    "suv": "car",
+    "jeep": "car",
+    "hare": "rabbit",
+    "jackrabbit": "rabbit",
+    "cottontail": "rabbit",
+    "none": "empty",
+    "nothing": "empty",
+    "no animal": "empty",
 }
 CONFIDENCES = ("high", "medium", "low")
 
@@ -63,7 +95,7 @@ ALERT_PROMPT = (
 )
 DIGEST_PROMPT = (
     "Write the morning digest for a ranger from these camera-trap triage facts. "
-    "Start with exactly this sentence: \"{headline}\" Then at most three short lines: the species seen, "
+    'Start with exactly this sentence: "{headline}" Then at most three short lines: the species seen, '
     "and each frame that needs the ranger with its note. Plain text, no markdown, no invented facts.\n\nFacts:\n{facts}"
 )
 
@@ -263,7 +295,9 @@ def digest_headline(facts: dict) -> str:
 def plain_digest(facts: dict) -> str:
     lines = [digest_headline(facts)]
     if facts["species"]:
-        lines.append("Seen: " + ", ".join(f"{name.replace('_', ' ')} x{n}" for name, n in facts["species"].items()) + ".")
+        lines.append(
+            "Seen: " + ", ".join(f"{name.replace('_', ' ')} x{n}" for name, n in facts["species"].items()) + "."
+        )
     lines.extend(f"Check {e['frame']}: {e['note']}" for e in facts["escalations"])
     lines.append(f"Bedrock spend: ${facts['cost_usd']:.4f}.")
     return "\n".join(lines)

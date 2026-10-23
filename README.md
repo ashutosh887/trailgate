@@ -33,17 +33,30 @@ Pattern tag: **`#model-routing`**. The question is "does this frame need a model
 
 ```python
 {
-  "present":    {"type": "noul",
-                 "instructions": "Is there an animal anywhere in this photo, even partly hidden or at the edge?",
-                 "criteria": {"true": "an animal or part of one is visible",
-                              "false": "only vegetation, ground, sky, or camera artefacts"}},
-  "escalate":   {"type": "noul",
-                 "instructions": "Is there a person or a vehicle in this photo?",
-                 "criteria": {"true": "a person, car, truck, motorbike or other vehicle, or part of one, is visible",
-                              "false": "only animals, vegetation, ground, sky, or camera artefacts"}},
-  "difficulty": {"type": "choice", "instructions": "How easy is the subject to see?",
-                 "criteria": {"clear": "the subject is large, lit and in focus",
-                              "hard": "the subject is small, dark, blurred, infrared or partly hidden"}}
+    "present": {
+        "type": "noul",
+        "instructions": "Is there an animal anywhere in this photo, even partly hidden or at the edge?",
+        "criteria": {
+            "true": "an animal or part of one is visible",
+            "false": "only vegetation, ground, sky, or camera artefacts",
+        },
+    },
+    "escalate": {
+        "type": "noul",
+        "instructions": "Is there a person or a vehicle in this photo?",
+        "criteria": {
+            "true": "a person, car, truck, motorbike or other vehicle, or part of one, is visible",
+            "false": "only animals, vegetation, ground, sky, or camera artefacts",
+        },
+    },
+    "difficulty": {
+        "type": "choice",
+        "instructions": "How easy is the subject to see?",
+        "criteria": {
+            "clear": "the subject is large, lit and in focus",
+            "hard": "the subject is small, dark, blurred, infrared or partly hidden",
+        },
+    },
 }
 ```
 
@@ -119,9 +132,10 @@ from strands import Agent
 from patterns.presence_router import PresenceRouterCore, Thresholds
 from patterns.presence_router.handler import PresenceRouter
 
-router = PresenceRouter(PresenceRouterCore(target="a parcel or package", escalate=None,
-                                           thresholds=Thresholds(skip_below=0.3)),
-                        tools={"describe_image"})
+router = PresenceRouter(
+    PresenceRouterCore(target="a parcel or package", escalate=None, thresholds=Thresholds(skip_below=0.3)),
+    tools={"describe_image"},
+)
 agent = Agent(tools=[describe_image], interventions=[router])
 ```
 

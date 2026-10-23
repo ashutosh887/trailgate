@@ -26,7 +26,9 @@ from pathlib import Path
 
 from PIL import Image
 
-LABELS_URL = "https://storage.googleapis.com/public-datasets-lila/caltechcameratraps/labels/caltech_camera_traps.json.zip"
+LABELS_URL = (
+    "https://storage.googleapis.com/public-datasets-lila/caltechcameratraps/labels/caltech_camera_traps.json.zip"
+)
 IMAGE_MIRRORS = (
     "https://storage.googleapis.com/public-datasets-lila/caltech-unzipped/cct_images/{}",
     "https://lilawildlife.blob.core.windows.net/lila-wildlife/caltech-unzipped/cct_images/{}",
@@ -55,13 +57,15 @@ def single_label_frames(labels: dict) -> list[dict]:
         cats = per_image.get(img["id"], set())
         if len(cats) != 1:
             continue
-        frames.append({
-            "id": img["id"],
-            "file_name": img["file_name"],
-            "label": next(iter(cats)),
-            "location": str(img["location"]),
-            "captured": img.get("date_captured", ""),
-        })
+        frames.append(
+            {
+                "id": img["id"],
+                "file_name": img["file_name"],
+                "label": next(iter(cats)),
+                "location": str(img["location"]),
+                "captured": img.get("date_captured", ""),
+            }
+        )
     return frames
 
 

@@ -49,8 +49,11 @@ def main() -> dict:
         bursts[b["seq_id"]].append(b)
         if b["anchor"] == "1":
             label[b["seq_id"]] = audit.get(b["file_name"], b["label"])
-    chosen = {s: sorted(g, key=lambda b: int(b["frame_num"]))[:MAX_IMAGES] for s, g in bursts.items()
-              if len(g) >= 2 and label[s] not in ("car", "person")}
+    chosen = {
+        s: sorted(g, key=lambda b: int(b["frame_num"]))[:MAX_IMAGES]
+        for s, g in bursts.items()
+        if len(g) >= 2 and label[s] not in ("car", "person")
+    }
 
     cache_path = RESULTS / "burst_multi_image.jsonl"
     cache = {}
@@ -68,8 +71,13 @@ def main() -> dict:
             images = [(IMAGES / f["file_name"]).read_bytes() for f in frames]
             started = time.perf_counter()
             response = client.ask(q, images, STATE)
-            row = {"seq_id": seq, "files": [f["file_name"] for f in frames], "label": label[seq],
-                   "multi": response["answers"]["present"]["noul"], "wall_latency_ms": round((time.perf_counter() - started) * 1000, 1)}
+            row = {
+                "seq_id": seq,
+                "files": [f["file_name"] for f in frames],
+                "label": label[seq],
+                "multi": response["answers"]["present"]["noul"],
+                "wall_latency_ms": round((time.perf_counter() - started) * 1000, 1),
+            }
             out.write(json.dumps(row) + "\n")
             out.flush()
             cache[seq] = row
@@ -100,7 +108,9 @@ def main() -> dict:
         "skip_below": skip_below,
         "state": STATE,
         "question": q,
-        "rows": [{k: r[k] for k in ("seq_id", "label", "multi", "max", "wall_latency_ms", "frames_latency_ms")} for r in rows],
+        "rows": [
+            {k: r[k] for k in ("seq_id", "label", "multi", "max", "wall_latency_ms", "frames_latency_ms")} for r in rows
+        ],
     }
     as_good = result["auc_multi"] >= result["auc_max"] and result["animal_below_multi"] <= result["animal_below_max"]
     result["adopted"] = "yes" if as_good else "no: per-frame calls with max over the burst are kept"

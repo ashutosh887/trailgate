@@ -49,11 +49,21 @@ class CardSession:
         rows = []
         for path, route in self.router.routes.items():
             label = self.labels.get(path, {})
-            rows.append(FrameResult(
-                Path(path).name, route.tier.value, route.present, route.escalate, route.difficulty, route.reason,
-                route.latency_ms, species=label.get("species"), species_confidence=label.get("confidence"),
-                alert=self.alerts.get(path), calls=label.get("calls", []),
-            ))
+            rows.append(
+                FrameResult(
+                    Path(path).name,
+                    route.tier.value,
+                    route.present,
+                    route.escalate,
+                    route.difficulty,
+                    route.reason,
+                    route.latency_ms,
+                    species=label.get("species"),
+                    species_confidence=label.get("confidence"),
+                    alert=self.alerts.get(path),
+                    calls=label.get("calls", []),
+                )
+            )
         return rows
 
 
@@ -126,7 +136,9 @@ def build_tools(session: CardSession) -> list:
             image_path, note, route.present if route else None, route.escalate if route else None, source="agent"
         )
         session.alerts[key] = note
-        return f"alert sent for {Path(image_path).name}" + (f" (SNS: {record['sns_error']})" if record["sns_error"] else "")
+        return f"alert sent for {Path(image_path).name}" + (
+            f" (SNS: {record['sns_error']})" if record["sns_error"] else ""
+        )
 
     @tool
     def daily_digest() -> str:
@@ -150,4 +162,3 @@ def build_agent(core: PresenceRouterCore | None = None) -> tuple[Agent, CardSess
         callback_handler=None,
     )
     return agent, session
-

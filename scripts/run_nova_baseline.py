@@ -45,8 +45,14 @@ def run_tier(tier: str, rows: list[dict], limit: int | None, max_errors: int) ->
     with open(path, "a") as out:
         for i, r in enumerate(todo, 1):
             species, confidence, call = label_species((ROOT / "data/images" / r["file_name"]).read_bytes(), tier)
-            row = {"file_name": r["file_name"], "label": r["label"], "lighting": r["lighting"],
-                   "species": species, "confidence": confidence, **asdict(call)}
+            row = {
+                "file_name": r["file_name"],
+                "label": r["label"],
+                "lighting": r["lighting"],
+                "species": species,
+                "confidence": confidence,
+                **asdict(call),
+            }
             out.write(json.dumps(row) + "\n")
             out.flush()
             if call.error:
@@ -58,7 +64,13 @@ def run_tier(tier: str, rows: list[dict], limit: int | None, max_errors: int) ->
             elif i % 25 == 0:
                 print(f"{tier}: {i}/{len(todo)}", file=sys.stderr)
     final = load_done(path)
-    return {"tier": tier, "file": str(path.relative_to(ROOT)), "ok": len(final), "of": len(rows), "errors_this_run": errors}
+    return {
+        "tier": tier,
+        "file": str(path.relative_to(ROOT)),
+        "ok": len(final),
+        "of": len(rows),
+        "errors_this_run": errors,
+    }
 
 
 def main(argv=None) -> None:

@@ -92,12 +92,12 @@ class PresenceRouterCore:
         self,
         target: str = "an animal",
         escalate: str | None = "a person or a vehicle",
-        thresholds: Thresholds = Thresholds(),
+        thresholds: Thresholds | None = None,
         client: DeciderClient | None = None,
         state: str = "A single frame from a wildlife camera trap.",
     ):
         self.questions = build_questions(target, escalate)
-        self.thresholds = thresholds
+        self.thresholds = thresholds or Thresholds()
         self.client = client or DeciderClient()
         self.state = state
 
@@ -125,7 +125,6 @@ class PresenceRouterCore:
         response = self.client.ask(self.questions, [data], self.state)
         return self.decide(response["answers"], (time.perf_counter() - started) * 1000)
 
-
     def decide_burst(self, routes: list[Route]) -> list[Route]:
         if not routes:
             return routes
@@ -136,9 +135,15 @@ class PresenceRouterCore:
         out = []
         for r in routes:
             if top_escalate is not None and top_escalate >= t.escalate_above and r.tier is not Tier.ESCALATE:
-                r = replace(r, tier=Tier.ESCALATE, reason=f"burst: escalation subject at {top_escalate:.2f} in another frame")
+                r = replace(
+                    r, tier=Tier.ESCALATE, reason=f"burst: escalation subject at {top_escalate:.2f} in another frame"
+                )
             elif r.tier is Tier.SKIP and top >= t.skip_below:
-                r = replace(r, tier=Tier.LARGE, reason=f"burst: target at {top:.2f} in another frame; this frame {r.present:.2f}")
+                r = replace(
+                    r,
+                    tier=Tier.LARGE,
+                    reason=f"burst: target at {top:.2f} in another frame; this frame {r.present:.2f}",
+                )
             out.append(r)
         return out
 

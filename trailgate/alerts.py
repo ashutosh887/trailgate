@@ -40,7 +40,8 @@ def _publish(topic: str, record: dict) -> dict:
     import boto3
 
     scores = ", ".join(
-        f"{name} p={value:.2f}" for name, value in (("person/vehicle", record["escalate"]), ("animal", record["present"]))
+        f"{name} p={value:.2f}"
+        for name, value in (("person/vehicle", record["escalate"]), ("animal", record["present"]))
         if value is not None
     )
     message = f"{record['alert']}\n\nFrame: {record['frame']}\nDecider: {scores}\nAt: {record['at']}"

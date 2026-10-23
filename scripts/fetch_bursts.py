@@ -21,7 +21,18 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 from fetch_cct import DATA, fetch, is_infrared, load_labels
 
-FIELDS = ["id", "file_name", "label", "location", "captured", "lighting", "seq_id", "frame_num", "seq_num_frames", "anchor"]
+FIELDS = [
+    "id",
+    "file_name",
+    "label",
+    "location",
+    "captured",
+    "lighting",
+    "seq_id",
+    "frame_num",
+    "seq_num_frames",
+    "anchor",
+]
 
 
 def burst_rows(labels: dict, manifest: list[dict]) -> list[dict]:
@@ -40,17 +51,21 @@ def burst_rows(labels: dict, manifest: list[dict]) -> list[dict]:
             if img["file_name"] in seen:
                 continue
             seen.add(img["file_name"])
-            rows.append({
-                "id": img["id"],
-                "file_name": img["file_name"],
-                "label": "+".join(sorted(per_image.get(img["id"], {"unlabelled"}))),
-                "location": str(img["location"]),
-                "captured": img.get("date_captured", ""),
-                "seq_id": seq,
-                "frame_num": img["frame_num"],
-                "seq_num_frames": img["seq_num_frames"],
-                "anchor": int(img["file_name"] == m["file_name"] or img["file_name"] in {x["file_name"] for x in manifest}),
-            })
+            rows.append(
+                {
+                    "id": img["id"],
+                    "file_name": img["file_name"],
+                    "label": "+".join(sorted(per_image.get(img["id"], {"unlabelled"}))),
+                    "location": str(img["location"]),
+                    "captured": img.get("date_captured", ""),
+                    "seq_id": seq,
+                    "frame_num": img["frame_num"],
+                    "seq_num_frames": img["seq_num_frames"],
+                    "anchor": int(
+                        img["file_name"] == m["file_name"] or img["file_name"] in {x["file_name"] for x in manifest}
+                    ),
+                }
+            )
     return rows
 
 
@@ -73,8 +88,10 @@ def main() -> None:
             w = csv.DictWriter(fh, fieldnames=FIELDS)
             w.writeheader()
             w.writerows(rows)
-        print(f"{name}: {len(manifest)} frames, {len({r['seq_id'] for r in rows})} sequences, "
-              f"{len(rows)} burst frames ({len(todo)} fetched)")
+        print(
+            f"{name}: {len(manifest)} frames, {len({r['seq_id'] for r in rows})} sequences, "
+            f"{len(rows)} burst frames ({len(todo)} fetched)"
+        )
 
 
 if __name__ == "__main__":

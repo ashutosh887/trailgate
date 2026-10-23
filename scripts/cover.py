@@ -37,7 +37,12 @@ def main() -> None:
     canvas = Image.new("RGB", (width, height), BG)
     draw = ImageDraw.Draw(canvas)
     draw.text((PAD, 40), "Trailgate", font=font(52), fill="#e8efe9")
-    draw.text((PAD, 104), "A 2B model decides which camera-trap photos are worth a model's time.", font=font(26), fill="#93a59b")
+    draw.text(
+        (PAD, 104),
+        "A 2B model decides which camera-trap photos are worth a model's time.",
+        font=font(26),
+        fill="#93a59b",
+    )
 
     for i, (name, stamp, note, key, color) in enumerate(FRAMES):
         x = PAD + (i % 3) * (TILE_W + GAP)

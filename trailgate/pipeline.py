@@ -23,7 +23,9 @@ def load_thresholds(path: Path = THRESHOLDS_FILE) -> Thresholds:
         return Thresholds()
     data = json.loads(path.read_text())
     types = {f.name: f.type for f in fields(Thresholds)}
-    return Thresholds(**{k: (bool(v) if types[k] in (bool, "bool") else float(v)) for k, v in data.items() if k in types})
+    return Thresholds(
+        **{k: (bool(v) if types[k] in (bool, "bool") else float(v)) for k, v in data.items() if k in types}
+    )
 
 
 def find_frames(paths: list[str | Path]) -> list[Path]:
@@ -103,14 +105,23 @@ class Triage:
         return results
 
     @staticmethod
-    def _result(name: str, check: frames.FrameCheck, route: Route | None, label: str | None, lighting: str | None) -> FrameResult:
+    def _result(
+        name: str, check: frames.FrameCheck, route: Route | None, label: str | None, lighting: str | None
+    ) -> FrameResult:
         if route is None:
             reason = f"code check: {check.reason}; Decider not asked"
             return FrameResult(name, Tier.SKIP.value, 0.0, None, "n/a", reason, 0.0, label=label, lighting=lighting)
         lighting = lighting or ("night_ir" if check.infrared else "day")
         return FrameResult(
-            name, route.tier.value, route.present, route.escalate, route.difficulty, route.reason, route.latency_ms,
-            label=label, lighting=lighting,
+            name,
+            route.tier.value,
+            route.present,
+            route.escalate,
+            route.difficulty,
+            route.reason,
+            route.latency_ms,
+            label=label,
+            lighting=lighting,
         )
 
     def _burst_alert(self, result: FrameResult, path: str, image: bytes, route: Route, size: int) -> None:

@@ -19,16 +19,30 @@ From `questions.py`, with `target="an animal"` and `escalate="a person or a vehi
 
 ```python
 {
-  "present": {"type": "noul",
-              "instructions": "Is there an animal anywhere in this photo, even partly hidden or at the edge?",
-              "criteria": {"true": "an animal or part of one is visible",
-                           "false": "only vegetation, ground, sky, or camera artefacts"}},
-  "difficulty": {"type": "choice", "instructions": "How easy is the subject to see?",
-                 "criteria": {"clear": "the subject is large, lit and in focus",
-                              "hard": "the subject is small, dark, blurred, infrared or partly hidden"}},
-  "escalate": {"type": "noul", "instructions": "Is there a person or a vehicle in this photo?",
-               "criteria": {"true": "a person, car, truck, motorbike or other vehicle, or part of one, is visible",
-                            "false": "only animals, vegetation, ground, sky, or camera artefacts"}},
+    "present": {
+        "type": "noul",
+        "instructions": "Is there an animal anywhere in this photo, even partly hidden or at the edge?",
+        "criteria": {
+            "true": "an animal or part of one is visible",
+            "false": "only vegetation, ground, sky, or camera artefacts",
+        },
+    },
+    "difficulty": {
+        "type": "choice",
+        "instructions": "How easy is the subject to see?",
+        "criteria": {
+            "clear": "the subject is large, lit and in focus",
+            "hard": "the subject is small, dark, blurred, infrared or partly hidden",
+        },
+    },
+    "escalate": {
+        "type": "noul",
+        "instructions": "Is there a person or a vehicle in this photo?",
+        "criteria": {
+            "true": "a person, car, truck, motorbike or other vehicle, or part of one, is visible",
+            "false": "only animals, vegetation, ground, sky, or camera artefacts",
+        },
+    },
 }
 ```
 
@@ -41,14 +55,17 @@ from strands import Agent, tool
 from patterns.presence_router import PresenceRouterCore, Thresholds
 from patterns.presence_router.handler import PresenceRouter
 
+
 @tool
 def describe_image(image_path: str, model_tier: str = "large") -> str:
     """Describe the image with the model the router picked."""
     ...
 
-router = PresenceRouter(PresenceRouterCore(target="a parcel or package", escalate=None,
-                                           thresholds=Thresholds(skip_below=0.3)),
-                        tools={"describe_image"})
+
+router = PresenceRouter(
+    PresenceRouterCore(target="a parcel or package", escalate=None, thresholds=Thresholds(skip_below=0.3)),
+    tools={"describe_image"},
+)
 agent = Agent(tools=[describe_image], interventions=[router])
 ```
 

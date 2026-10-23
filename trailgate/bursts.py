@@ -67,10 +67,12 @@ def manifest_bursts(manifest: Path, images: Path) -> list[Burst]:
     bursts = []
     for key, members in groups.items():
         members.sort(key=lambda r: int(r.get("frame_num") or 0))
-        bursts.append(Burst(
-            [images / r["file_name"] for r in members],
-            [r.get("label") or None for r in members],
-            [r.get("lighting") or None for r in members],
-            key,
-        ))
+        bursts.append(
+            Burst(
+                [images / r["file_name"] for r in members],
+                [r.get("label") or None for r in members],
+                [r.get("lighting") or None for r in members],
+                key,
+            )
+        )
     return bursts

@@ -69,15 +69,24 @@ def fmt(v, suffix=""):
 
 def machine() -> str:
     try:
-        chip = subprocess.run(["sysctl", "-n", "machdep.cpu.brand_string"], capture_output=True, text=True).stdout.strip()
-        mem = int(subprocess.run(["sysctl", "-n", "hw.memsize"], capture_output=True, text=True).stdout.strip()) // 2**30
+        chip = subprocess.run(
+            ["sysctl", "-n", "machdep.cpu.brand_string"], capture_output=True, text=True
+        ).stdout.strip()
+        mem = (
+            int(subprocess.run(["sysctl", "-n", "hw.memsize"], capture_output=True, text=True).stdout.strip()) // 2**30
+        )
         return f"{chip}, {mem} GB, macOS {platform.mac_ver()[0]}, PyTorch MPS"
     except Exception:
         return platform.platform()
 
 
 def thresholds_of(d: dict) -> Thresholds:
-    return Thresholds(float(d["skip_below"]), float(d["small_above"]), float(d["escalate_above"]), bool(d.get("use_difficulty", False)))
+    return Thresholds(
+        float(d["skip_below"]),
+        float(d["small_above"]),
+        float(d["escalate_above"]),
+        bool(d.get("use_difficulty", False)),
+    )
 
 
 def frame_rows(rows: list[dict], cache: dict, kind: str) -> list[dict]:
@@ -86,24 +95,26 @@ def frame_rows(rows: list[dict], cache: dict, kind: str) -> list[dict]:
         c = cache[r["file_name"]]
         a = c["answers"]
         w, h = Image.open(IMAGES / r["file_name"]).size
-        out.append({
-            **r,
-            "kind": kind,
-            "seq_id": r.get("seq_id") or r["file_name"],
-            "anchor": r.get("anchor", "1") == "1",
-            "answers": a,
-            "present": a["present"]["noul"],
-            "escalate": a["escalate"]["noul"],
-            "difficulty": a["difficulty"]["choice"],
-            "p_hard": a["difficulty"].get("probabilities", {}).get("hard"),
-            "check": frames.check(IMAGES / r["file_name"]).reason,
-            "latency_ms": c["wall_latency_ms"],
-            "width": w,
-            "height": h,
-            "is_animal": r["label"] not in NON_ANIMAL,
-            "is_empty": r["label"] == "empty",
-            "is_vehicle": r["label"] in VEHICLE,
-        })
+        out.append(
+            {
+                **r,
+                "kind": kind,
+                "seq_id": r.get("seq_id") or r["file_name"],
+                "anchor": r.get("anchor", "1") == "1",
+                "answers": a,
+                "present": a["present"]["noul"],
+                "escalate": a["escalate"]["noul"],
+                "difficulty": a["difficulty"]["choice"],
+                "p_hard": a["difficulty"].get("probabilities", {}).get("hard"),
+                "check": frames.check(IMAGES / r["file_name"]).reason,
+                "latency_ms": c["wall_latency_ms"],
+                "width": w,
+                "height": h,
+                "is_animal": r["label"] not in NON_ANIMAL,
+                "is_empty": r["label"] == "empty",
+                "is_vehicle": r["label"] in VEHICLE,
+            }
+        )
     return out
 
 
@@ -115,9 +126,9 @@ def route_all(rows: list[dict], t: Thresholds, burst: bool) -> list[str]:
         for i, r in enumerate(rows):
             groups[r["seq_id"]].append(i)
         for idx in groups.values():
-            for i, route in zip(idx, core.decide_burst([routes[i] for i in idx])):
+            for i, route in zip(idx, core.decide_burst([routes[i] for i in idx]), strict=False):
                 routes[i] = route
-    return [Tier.SKIP.value if r["check"] else route.tier.value for r, route in zip(rows, routes)]
+    return [Tier.SKIP.value if r["check"] else route.tier.value for r, route in zip(rows, routes, strict=False)]
 
 
 def summary(fs: list[dict]) -> dict:
@@ -126,7 +137,10 @@ def summary(fs: list[dict]) -> dict:
     vehicles = [f for f in fs if f["is_vehicle"]]
     non_vehicle = [f for f in fs if not f["is_vehicle"]]
     lat = [f["latency_ms"] for f in fs]
-    skip = lambda group: sum(f["tier"] == "skip" for f in group)
+
+    def skip(group):
+        return sum(f["tier"] == "skip" for f in group)
+
     return {
         "n_frames": len(fs),
         "n_empty": len(empties),
@@ -145,7 +159,8 @@ def summary(fs: list[dict]) -> dict:
         "false_alerts": sum(f["tier"] == "escalate" for f in non_vehicle),
         "false_alerts_on_empty": sum(f["tier"] == "escalate" for f in empties),
         "presence_auc_animal_vs_empty": round(auc([f["present"] for f in animals], [f["present"] for f in empties]), 4)
-        if animals and empties else None,
+        if animals and empties
+        else None,
         "latency_ms_p50": quantile(lat, 0.5),
         "latency_ms_p90": quantile(lat, 0.9),
     }
@@ -161,7 +176,10 @@ def sequence_summary(burst_frames: list[dict], seq_label: dict) -> dict:
         empty = [g for s, g in seqs.items() if seq_label[s] == "empty"]
         animal = [g for s, g in seqs.items() if seq_label[s] not in NON_ANIMAL]
         vehicle = [g for s, g in seqs.items() if seq_label[s] in VEHICLE]
-        all_skipped = lambda g: all(f["tier"] == "skip" for f in g)
+
+        def all_skipped(g):
+            return all(f["tier"] == "skip" for f in g)
+
         out[key] = {
             "n_sequences": len(seqs),
             "n_frames": sum(len(g) for g in seqs.values()),
@@ -190,15 +208,17 @@ def sweep(burst_frames: list[dict], t: Thresholds, burst: bool) -> list[dict]:
     for s in SWEEP:
         tt = Thresholds(s, t.small_above, t.escalate_above, t.use_difficulty)
         tiers = route_all(burst_frames, tt, burst)
-        anchors = [(x, f) for x, f in zip(tiers, burst_frames) if f["anchor"]]
-        rows.append({
-            "skip_below": s,
-            "frames_skipped": sum(x == "skip" for x, _ in anchors),
-            "frames_skipped_pct": pct(sum(x == "skip" for x, _ in anchors), len(anchors)),
-            "empty_skipped": sum(x == "skip" and f["is_empty"] for x, f in anchors),
-            "animals_missed": sum(x == "skip" and f["is_animal"] for x, f in anchors),
-            "animals_missed_pct": pct(sum(x == "skip" and f["is_animal"] for x, f in anchors), n_animal),
-        })
+        anchors = [(x, f) for x, f in zip(tiers, burst_frames, strict=False) if f["anchor"]]
+        rows.append(
+            {
+                "skip_below": s,
+                "frames_skipped": sum(x == "skip" for x, _ in anchors),
+                "frames_skipped_pct": pct(sum(x == "skip" for x, _ in anchors), len(anchors)),
+                "empty_skipped": sum(x == "skip" and f["is_empty"] for x, f in anchors),
+                "animals_missed": sum(x == "skip" and f["is_animal"] for x, f in anchors),
+                "animals_missed_pct": pct(sum(x == "skip" and f["is_animal"] for x, f in anchors), n_animal),
+            }
+        )
     return rows
 
 
@@ -208,12 +228,17 @@ def reliability(fs: list[dict], bins: int = 10) -> list[dict]:
     for i in range(bins):
         lo, hi = i / bins, (i + 1) / bins
         inside = [f for f in pool if lo <= f["present"] < hi or (i == bins - 1 and f["present"] == 1.0)]
-        out.append({
-            "bin": f"{lo:.1f}-{hi:.1f}", "lo": lo, "hi": hi, "n": len(inside),
-            "n_animal": sum(f["is_animal"] for f in inside),
-            "mean_present": round(sum(f["present"] for f in inside) / len(inside), 3) if inside else None,
-            "observed_animal_rate": round(sum(f["is_animal"] for f in inside) / len(inside), 3) if inside else None,
-        })
+        out.append(
+            {
+                "bin": f"{lo:.1f}-{hi:.1f}",
+                "lo": lo,
+                "hi": hi,
+                "n": len(inside),
+                "n_animal": sum(f["is_animal"] for f in inside),
+                "mean_present": round(sum(f["present"] for f in inside) / len(inside), 3) if inside else None,
+                "observed_animal_rate": round(sum(f["is_animal"] for f in inside) / len(inside), 3) if inside else None,
+            }
+        )
     return out
 
 
@@ -242,8 +267,13 @@ def dataset_stats() -> dict | None:
     for a in d["annotations"]:
         per.setdefault(a["image_id"], set()).add(cats[a["category_id"]])
     empty = sum(1 for i in d["images"] if per.get(i["id"]) == {"empty"})
-    return {"source": path.name, "n_images": len(d["images"]), "n_empty": empty,
-            "empty_pct": pct(empty, len(d["images"])), "has_person_class": "person" in cats.values() or "human" in cats.values()}
+    return {
+        "source": path.name,
+        "n_images": len(d["images"]),
+        "n_empty": empty,
+        "empty_pct": pct(empty, len(d["images"])),
+        "has_person_class": "person" in cats.values() or "human" in cats.values(),
+    }
 
 
 def frame_costs(f: dict, tier: str) -> dict:
@@ -331,21 +361,26 @@ def nova_baselines(fs: list[dict]) -> dict | None:
             continue
         calls = list(rows.values())
         out[name] = {
-            **species_eval(fs, lambda f: rows.get(f["file_name"], {}).get("species")),
+            **species_eval(fs, lambda f, rows=rows: rows.get(f["file_name"], {}).get("species")),
             "measured_cost_per_10k_usd": round(sum(c["cost_usd"] for c in calls) / len(calls) * 10000, 4),
             "latency_ms_p50": quantile([c["latency_ms"] for c in calls], 0.5),
             "mean_input_tokens": round(sum(c["input_tokens"] for c in calls) / len(calls), 1),
         }
     if lite and pro:
         for policy in POLICY_NAMES:
+
             def trail(f, policy=policy):
                 tier = f["tiers"][policy]
                 if tier == "skip":
                     return "empty"
                 return (lite if tier == "small" else pro).get(f["file_name"], {}).get("species")
+
             covered = [f for f in fs if trail(f) is not None]
-            cost = sum((lite if f["tiers"][policy] == "small" else pro)[f["file_name"]]["cost_usd"]
-                       for f in covered if f["tiers"][policy] != "skip")
+            cost = sum(
+                (lite if f["tiers"][policy] == "small" else pro)[f["file_name"]]["cost_usd"]
+                for f in covered
+                if f["tiers"][policy] != "skip"
+            )
             out[f"trailgate_{policy}"] = {
                 **species_eval(fs, trail),
                 "measured_cost_per_10k_usd": round(cost / len(covered) * 10000, 4) if covered else None,
@@ -366,18 +401,30 @@ def audit_summary(anchors: list[dict], vehicles: list[dict], policy: str, audit:
     missed = [f for f in anchors if f["is_animal"] and f["tiers"][policy] == "skip"]
     alerts = [f for f in anchors if f["tiers"][policy] == "escalate" and not f["is_vehicle"]]
     missed_veh = [f for f in anchors + vehicles if f["is_vehicle"] and f["tiers"][policy] != "escalate"]
-    seen = lambda fs: dict(Counter(audit.get(f["file_name"], {}).get("visible", "not checked") for f in fs))
+
+    def seen(fs):
+        return dict(Counter(audit.get(f["file_name"], {}).get("visible", "not checked") for f in fs))
+
     return {
         "scope": "only frames a policy got wrong by CCT labels were checked by eye; the rest of the set was not audited",
         "false_alerts_checked": len(alerts),
         "false_alerts_with_person": sum(audit.get(f["file_name"], {}).get("audited_label") == "person" for f in alerts),
         "false_alerts_not_checked": sum(f["file_name"] not in audit for f in alerts),
-        "false_alert_notes": [{"file_name": f["file_name"], "note": audit[f["file_name"]]["note"]} for f in alerts
-                              if f["file_name"] in audit and audit[f["file_name"]].get("audited_label") != "person"],
+        "false_alert_notes": [
+            {"file_name": f["file_name"], "note": audit[f["file_name"]]["note"]}
+            for f in alerts
+            if f["file_name"] in audit and audit[f["file_name"]].get("audited_label") != "person"
+        ],
         "missed_animals_visible": seen(missed),
         "missed_animals_later_burst_frame": sum(int(f.get("frame_num") or 0) >= 2 for f in missed),
-        "missed_vehicles": [{"file_name": f["file_name"], "escalate": f["escalate"],
-                             "note": audit.get(f["file_name"], {}).get("note", "not checked")} for f in missed_veh],
+        "missed_vehicles": [
+            {
+                "file_name": f["file_name"],
+                "escalate": f["escalate"],
+                "note": audit.get(f["file_name"], {}).get("note", "not checked"),
+            }
+            for f in missed_veh
+        ],
     }
 
 
@@ -385,8 +432,16 @@ def batching_check() -> dict | None:
     batched, single = RESULTS / "tune_answers.jsonl", RESULTS / "tune_answers_production.jsonl"
     if not (batched.exists() and single.exists()):
         return None
-    a = {json.loads(l)["file_name"]: json.loads(l)["answers"] for l in batched.read_text().splitlines() if l.strip()}
-    b = {json.loads(l)["file_name"]: json.loads(l)["answers"] for l in single.read_text().splitlines() if l.strip()}
+    a = {
+        json.loads(line)["file_name"]: json.loads(line)["answers"]
+        for line in batched.read_text().splitlines()
+        if line.strip()
+    }
+    b = {
+        json.loads(line)["file_name"]: json.loads(line)["answers"]
+        for line in single.read_text().splitlines()
+        if line.strip()
+    }
     common = [k for k in b if k in a]
     dp = [abs(a[k]["p_criteria"]["noul"] - b[k]["present"]["noul"]) for k in common]
     de = [abs(a[k]["e_criteria"]["noul"] - b[k]["escalate"]["noul"]) for k in common]
@@ -403,59 +458,76 @@ def save_gallery(missed: list[dict], audit: dict, folder: str, md_name: str, tit
     if out.exists():
         shutil.rmtree(out)
     out.mkdir(parents=True)
-    lines = [f"# {title}", "",
-             "\"Visible to the eye\" is a manual check of the full-size frame: yes, faint (a shape or eye shine that may be the animal), "
-             "or no. Frame n/N is the frame's place in its camera burst (CCT `frame_num` / `seq_num_frames`).", "",
-             "| Thumbnail | Label | Lighting | P(animal) | Max P(animal) in burst | Frame | Visible to the eye | Note | File |",
-             "|---|---|---|---|---|---|---|---|---|"]
+    lines = [
+        f"# {title}",
+        "",
+        '"Visible to the eye" is a manual check of the full-size frame: yes, faint (a shape or eye shine that may be the animal), '
+        "or no. Frame n/N is the frame's place in its camera burst (CCT `frame_num` / `seq_num_frames`).",
+        "",
+        "| Thumbnail | Label | Lighting | P(animal) | Max P(animal) in burst | Frame | Visible to the eye | Note | File |",
+        "|---|---|---|---|---|---|---|---|---|",
+    ]
     for f in sorted(missed, key=lambda x: x["present"]):
         img = Image.open(IMAGES / f["file_name"])
         img.thumbnail((400, 400))
         img.convert("RGB").save(out / f["file_name"], quality=85)
         a = audit.get(f["file_name"], {})
-        lines.append(f"| ![{f['label']}]({folder}/{f['file_name']}) | {f['label']} | {f['lighting']} | {f['present']:.3f} | "
-                     f"{burst_max[f['seq_id']]:.3f} | {f.get('frame_num', '?')}/{f.get('seq_num_frames', '?')} | "
-                     f"{a.get('visible', 'not checked')} | {a.get('note', '')} | `{f['file_name']}` |")
+        lines.append(
+            f"| ![{f['label']}]({folder}/{f['file_name']}) | {f['label']} | {f['lighting']} | {f['present']:.3f} | "
+            f"{burst_max[f['seq_id']]:.3f} | {f.get('frame_num', '?')}/{f.get('seq_num_frames', '?')} | "
+            f"{a.get('visible', 'not checked')} | {a.get('note', '')} | `{f['file_name']}` |"
+        )
     (RESULTS / md_name).write_text("\n".join(lines) + "\n")
 
 
 def headline_rows(block: dict) -> list[str]:
-    lines = ["| Subset | Frames | Empty correctly skipped | Animals missed (routed to skip) | Frames skipped | Vehicles caught | "
-             "Alerts on frames without a car label | Tiers skip / small / large / escalate |",
-             "|---|---|---|---|---|---|---|---|"]
+    lines = [
+        "| Subset | Frames | Empty correctly skipped | Animals missed (routed to skip) | Frames skipped | Vehicles caught | "
+        "Alerts on frames without a car label | Tiers skip / small / large / escalate |",
+        "|---|---|---|---|---|---|---|---|",
+    ]
     for key in ("all", *LIGHTINGS):
         s = block["heldout"][key]
         t = s["tiers"]
         lines.append(
             f"| {LIGHT_NAME[key]} | {s['n_frames']} | {s['empty_skipped']}/{s['n_empty']} ({fmt(s['empty_skipped_pct'], '%')}) | "
             f"**{s['animals_missed']}/{s['n_animal']}** ({fmt(s['animals_missed_pct'], '%')}) | {s['frames_skipped']} ({fmt(s['frames_skipped_pct'], '%')}) | "
-            f"{s['vehicles_caught']}/{s['n_vehicle']} | {s['false_alerts']} | {t['skip']} / {t['small']} / {t['large']} / {t['escalate']} |")
+            f"{s['vehicles_caught']}/{s['n_vehicle']} | {s['false_alerts']} | {t['skip']} / {t['small']} / {t['large']} / {t['escalate']} |"
+        )
     return lines
 
 
 def sequence_rows(m: dict) -> list[str]:
-    lines = ["| Policy | Subset | Bursts | Empty bursts skipped | Animal bursts missed (every frame skipped) | Animal bursts partly skipped | Vehicle bursts caught |",
-             "|---|---|---|---|---|---|---|"]
+    lines = [
+        "| Policy | Subset | Bursts | Empty bursts skipped | Animal bursts missed (every frame skipped) | Animal bursts partly skipped | Vehicle bursts caught |",
+        "|---|---|---|---|---|---|---|",
+    ]
     for name in POLICY_NAMES:
         for key in ("all", *LIGHTINGS):
             s = m["policies"][name]["sequences"][key]
-            lines.append(f"| {name} | {LIGHT_NAME[key]} | {s['n_sequences']} | {s['empty_skipped']}/{s['n_empty']} ({fmt(s['empty_skipped_pct'], '%')}) | "
-                         f"**{s['animals_missed']}/{s['n_animal']}** ({fmt(s['animals_missed_pct'], '%')}) | {s['animal_partly_skipped']} | "
-                         f"{s['vehicles_caught']}/{s['n_vehicle']} |")
+            lines.append(
+                f"| {name} | {LIGHT_NAME[key]} | {s['n_sequences']} | {s['empty_skipped']}/{s['n_empty']} ({fmt(s['empty_skipped_pct'], '%')}) | "
+                f"**{s['animals_missed']}/{s['n_animal']}** ({fmt(s['animals_missed_pct'], '%')}) | {s['animal_partly_skipped']} | "
+                f"{s['vehicles_caught']}/{s['n_vehicle']} |"
+            )
     return lines
 
 
 def sweep_rows(m: dict) -> list[str]:
     n_empty = m["policies"]["v1"]["heldout"]["all"]["n_empty"]
     n_animal = m["policies"]["v1"]["heldout"]["all"]["n_animal"]
-    lines = ["| skip_below | v1: frames skipped | v1: empty skipped | v1: animals missed | v2: frames skipped | v2: empty skipped | v2: animals missed |",
-             "|---|---|---|---|---|---|---|"]
+    lines = [
+        "| skip_below | v1: frames skipped | v1: empty skipped | v1: animals missed | v2: frames skipped | v2: empty skipped | v2: animals missed |",
+        "|---|---|---|---|---|---|---|",
+    ]
     marks = {m["thresholds"]["v1"]["skip_below"], m["thresholds"]["skip_below"]}
-    for a, b in zip(m["policies"]["v1"]["sweep"], m["policies"]["v2"]["sweep"]):
+    for a, b in zip(m["policies"]["v1"]["sweep"], m["policies"]["v2"]["sweep"], strict=False):
         s = a["skip_below"]
         if round(s * 100) % 5 == 0 or s in marks:
-            row = (f"| {s:.2f} | {a['frames_skipped']} ({a['frames_skipped_pct']}%) | {a['empty_skipped']}/{n_empty} | {a['animals_missed']}/{n_animal} | "
-                   f"{b['frames_skipped']} ({b['frames_skipped_pct']}%) | {b['empty_skipped']}/{n_empty} | {b['animals_missed']}/{n_animal} |")
+            row = (
+                f"| {s:.2f} | {a['frames_skipped']} ({a['frames_skipped_pct']}%) | {a['empty_skipped']}/{n_empty} | {a['animals_missed']}/{n_animal} | "
+                f"{b['frames_skipped']} ({b['frames_skipped_pct']}%) | {b['empty_skipped']}/{n_empty} | {b['animals_missed']}/{n_animal} |"
+            )
             if s in marks:
                 row = "| " + " | ".join(f"**{c.strip()}**" for c in row.strip("|").split("|")) + " |"
             lines.append(row)
@@ -469,11 +541,19 @@ def audit_lines(a: dict, n_missed: int) -> list[str]:
         f"(CCT labels people `empty`, so these alerts are correct), "
         f"{a['false_alerts_checked'] - a['false_alerts_with_person'] - a['false_alerts_not_checked']} checked by eye with no person or vehicle "
         f"(true false alerts), {a['false_alerts_not_checked']} not checked."
-        + ("".join(f" `{x['file_name'][:8]}`: {x['note']}." for x in a["false_alert_notes"]) if a.get("false_alert_notes") else ""),
+        + (
+            "".join(f" `{x['file_name'][:8]}`: {x['note']}." for x in a["false_alert_notes"])
+            if a.get("false_alert_notes")
+            else ""
+        ),
         f"- Missed animal frames ({n_missed}): visible to the eye {v.get('yes', 0)}, faint {v.get('faint', 0)}, nothing visible {v.get('no', 0)}, "
         f"not checked {v.get('not checked', 0)}. {a['missed_animals_later_burst_frame']} are frame 2 or later of their burst.",
         f"- Missed vehicle frames ({len(a['missed_vehicles'])}): "
-        + ("; ".join(f"`{x['file_name'][:8]}` P={x['escalate']:.2f}, {x['note']}" for x in a["missed_vehicles"]) or "none") + ".",
+        + (
+            "; ".join(f"`{x['file_name'][:8]}` P={x['escalate']:.2f}, {x['note']}" for x in a["missed_vehicles"])
+            or "none"
+        )
+        + ".",
     ]
 
 
@@ -496,8 +576,11 @@ def write_markdown(m: dict) -> str:
     ]
     if m.get("dataset"):
         ds = m["dataset"]
-        lines += [f"Full CCT label file (`{ds['source']}`): {ds['n_empty']:,} of {ds['n_images']:,} images are empty ({ds['empty_pct']}%; "
-                  "lila.science's summary says about 70%). The label set has no person class; CCT labels whole bursts.", ""]
+        lines += [
+            f"Full CCT label file (`{ds['source']}`): {ds['n_empty']:,} of {ds['n_images']:,} images are empty ({ds['empty_pct']}%; "
+            "lila.science's summary says about 70%). The label set has no person class; CCT labels whole bursts.",
+            "",
+        ]
     lines += [
         "## Summary: v1 to v2",
         "",
@@ -507,10 +590,12 @@ def write_markdown(m: dict) -> str:
     for name in POLICY_NAMES:
         p = m["policies"][name]
         s, q = p["heldout"]["all"], p["sequences"]["all"]
-        lines.append(f"| {POLICY_NAMES[name]} | {s['empty_skipped']}/{s['n_empty']} ({s['empty_skipped_pct']}%) | "
-                     f"{s['animals_missed']}/{s['n_animal']} ({s['animals_missed_pct']}%) | {q['empty_skipped']}/{q['n_empty']} ({q['empty_skipped_pct']}%) | "
-                     f"{q['animals_missed']}/{q['n_animal']} ({q['animals_missed_pct']}%) | {p['vehicles']['caught']}/{p['vehicles']['n']} | "
-                     f"{s['tiers']['small']} / {s['tiers']['large']} | ${c['policies'][name]['routed']:.2f} |")
+        lines.append(
+            f"| {POLICY_NAMES[name]} | {s['empty_skipped']}/{s['n_empty']} ({s['empty_skipped_pct']}%) | "
+            f"{s['animals_missed']}/{s['n_animal']} ({s['animals_missed_pct']}%) | {q['empty_skipped']}/{q['n_empty']} ({q['empty_skipped_pct']}%) | "
+            f"{q['animals_missed']}/{q['n_animal']} ({q['animals_missed_pct']}%) | {p['vehicles']['caught']}/{p['vehicles']['n']} | "
+            f"{s['tiers']['small']} / {s['tiers']['large']} | ${c['policies'][name]['routed']:.2f} |"
+        )
     lines += [
         f"| Nova Lite on every frame | 0 | 0 | 0 | 0 | n/a | {h['n_frames']} / 0 | ${c['nova_lite_every_frame']:.2f} |",
         f"| Nova Pro on every frame | 0 | 0 | 0 | 0 | n/a | 0 / {h['n_frames']} | ${c['nova_pro_every_frame']:.2f} |",
@@ -527,15 +612,16 @@ def write_markdown(m: dict) -> str:
         f"Tuning set vs held-out: presence AUC {m['tune_reference']['auc']} on tuning vs {h['presence_auc_animal_vs_empty']} held-out; "
         f"{m['tune_reference']['neg_below_zero_miss'] * 100:.1f}% of tuning empty frames below skip_below with 0 animals below, vs "
         f"{h['empty_skipped_pct']}% held-out with {h['animals_missed']} animals below. The threshold did not transfer without misses."
-        if m.get("tune_reference") else "",
+        if m.get("tune_reference")
+        else "",
         "",
         *audit_lines(v1["audit"], v1["heldout"]["all"]["animals_missed"]),
         "",
         "## Finding: the difficulty question carries little signal",
         "",
-        f"On the held-out frames Decider called {d['called_hard']} of {d['n_frames']} frames \"hard\" ({d['called_hard_pct']}%), including "
+        f'On the held-out frames Decider called {d["called_hard"]} of {d["n_frames"]} frames "hard" ({d["called_hard_pct"]}%), including '
         f"{d['animal_frames_called_hard']} of {d['n_animal']} animal frames. P(hard) separates night infrared from day frames with AUC "
-        f"{d['p_hard_auc_night_vs_day']}. Because v1 sent every \"hard\" frame to Nova Pro, {v1['heldout']['all']['tiers']['large']} of 600 "
+        f'{d["p_hard_auc_night_vs_day"]}. Because v1 sent every "hard" frame to Nova Pro, {v1["heldout"]["all"]["tiers"]["large"]} of 600 '
         f"frames went to the large model. v2 still asks the question (it is nearly free in the batched call) but does not route on it.",
         "",
         "## v2: confidence band + burst context",
@@ -584,7 +670,10 @@ def write_markdown(m: dict) -> str:
         "",
         "| P(animal) bin | Frames | Animal frames | Mean P(animal) | Observed animal rate |",
         "|---|---|---|---|---|",
-        *[f"| {r['bin']} | {r['n']} | {r['n_animal']} | {fmt(r['mean_present'])} | {fmt(r['observed_animal_rate'])} |" for r in m["reliability"]],
+        *[
+            f"| {r['bin']} | {r['n']} | {r['n_animal']} | {fmt(r['mean_present'])} | {fmt(r['observed_animal_rate'])} |"
+            for r in m["reliability"]
+        ],
         "",
         "## Cost per 10,000 frames",
         "",
@@ -597,17 +686,22 @@ def write_markdown(m: dict) -> str:
     ]
     for name in POLICY_NAMES:
         p = c["policies"][name]
-        lines.append(f"| Trailgate {POLICY_NAMES[name]} | ${p['routed']:.2f} | {p['routed_vs_lite_pct']}% | {p['routed_vs_pro_pct']}% |")
+        lines.append(
+            f"| Trailgate {POLICY_NAMES[name]} | ${p['routed']:.2f} | {p['routed_vs_lite_pct']}% | {p['routed_vs_pro_pct']}% |"
+        )
     for name in ("v1", "v2"):
         p = c["policies"][name]
-        lines.append(f"| Trailgate {name}, Lite-only variant (skip, else Nova Lite) | ${p['lite_only_variant']:.2f} | {p['lite_only_vs_lite_pct']}% | "
-                     f"{pct(p['lite_only_variant'], c['nova_pro_every_frame'])}% |")
+        lines.append(
+            f"| Trailgate {name}, Lite-only variant (skip, else Nova Lite) | ${p['lite_only_variant']:.2f} | {p['lite_only_vs_lite_pct']}% | "
+            f"{pct(p['lite_only_variant'], c['nova_pro_every_frame'])}% |"
+        )
     tok = c["label_call_tokens_typical_frame"]
     lines += [
         "",
         f"Per label call on a {tok['frame']} frame: ~{tok['input']} input tokens (image estimate from the closest documented resolution "
         f"plus the prompt) and {tok['output']} output tokens. On-demand prices per 1K tokens (us-east-1): "
-        + "; ".join(f"{k} ${v['input']} in / ${v['output']} out" for k, v in c["prices_per_1k_tokens_usd"].items()) + ".",
+        + "; ".join(f"{k} ${v['input']} in / ${v['output']} out" for k, v in c["prices_per_1k_tokens_usd"].items())
+        + ".",
         "",
         f"Decider runs locally: $0 per call, on {c['decider_machine']}. p50 / p90 Decider latency per frame: "
         f"{m['decider_latency_ms']['p50']} / {m['decider_latency_ms']['p90']} ms over {m['decider_latency_ms']['n']} calls. "
@@ -618,22 +712,38 @@ def write_markdown(m: dict) -> str:
         *[f"- {s}" for s in c["sources"]],
     ]
     if m.get("nova"):
-        lines += ["", "## Measured Bedrock baselines (held-out)", "",
-                  "| System | Frames scored | Species accuracy on animal frames | Empty frames called empty | Animals called empty | Measured $ per 10,000 |",
-                  "|---|---|---|---|---|---|"]
+        lines += [
+            "",
+            "## Measured Bedrock baselines (held-out)",
+            "",
+            "| System | Frames scored | Species accuracy on animal frames | Empty frames called empty | Animals called empty | Measured $ per 10,000 |",
+            "|---|---|---|---|---|---|",
+        ]
         for name, s in m["nova"].items():
-            lines.append(f"| {name} | {s['n_scored']} | {fmt(s['species_accuracy_on_animals'], '%')} | {s['empty_correct']} "
-                         f"({fmt(s['empty_correct_pct'], '%')}) | {s['animals_said_empty']} | {fmt(s['measured_cost_per_10k_usd'])} |")
+            lines.append(
+                f"| {name} | {s['n_scored']} | {fmt(s['species_accuracy_on_animals'], '%')} | {s['empty_correct']} "
+                f"({fmt(s['empty_correct_pct'], '%')}) | {s['animals_said_empty']} | {fmt(s['measured_cost_per_10k_usd'])} |"
+            )
     else:
-        lines += ["", "Bedrock baselines: not yet measured (Bedrock on-demand quota on this account was 0 at evaluation time; "
-                  "`scripts/run_nova_baseline.py` fills `results/nova_{lite,pro}.jsonl` and this script merges them)."]
+        lines += [
+            "",
+            "Bedrock baselines: not yet measured (Bedrock on-demand quota on this account was 0 at evaluation time; "
+            "`scripts/run_nova_baseline.py` fills `results/nova_{lite,pro}.jsonl` and this script merges them).",
+        ]
     bc = m.get("batching_check")
     if bc:
-        lines += ["", f"Batching check: on {bc['n_frames']} tuning frames, asking the same wording in a 9-question call and in the 3-question "
-                  f"production call changed P(animal) by at most {bc['present_max_abs_diff']} and P(person/vehicle) by at most "
-                  f"{bc['escalate_max_abs_diff']}; difficulty flipped on {bc['difficulty_flips']} frames."]
-    lines += ["", f"Missed-animal galleries: `results/missed.md` (v2, {v2['heldout']['all']['animals_missed']} frames) and "
-              f"`results/missed_v1.md` (v1, {v1['heldout']['all']['animals_missed']} frames).", ""]
+        lines += [
+            "",
+            f"Batching check: on {bc['n_frames']} tuning frames, asking the same wording in a 9-question call and in the 3-question "
+            f"production call changed P(animal) by at most {bc['present_max_abs_diff']} and P(person/vehicle) by at most "
+            f"{bc['escalate_max_abs_diff']}; difficulty flipped on {bc['difficulty_flips']} frames.",
+        ]
+    lines += [
+        "",
+        f"Missed-animal galleries: `results/missed.md` (v2, {v2['heldout']['all']['animals_missed']} frames) and "
+        f"`results/missed_v1.md` (v1, {v1['heldout']['all']['animals_missed']} frames).",
+        "",
+    ]
     return "\n".join(lines)
 
 
@@ -655,9 +765,11 @@ def main(argv=None) -> dict:
     if args.ask_only:
         return {}
     tfile = json.loads((RESULTS / "thresholds.json").read_text())
-    policies = {"v1": (thresholds_of(tfile["v1"] | {"use_difficulty": True}), False),
-                "v2_frame": (thresholds_of(tfile), False),
-                "v2": (thresholds_of(tfile), True)}
+    policies = {
+        "v1": (thresholds_of(tfile["v1"] | {"use_difficulty": True}), False),
+        "v2_frame": (thresholds_of(tfile), False),
+        "v2": (thresholds_of(tfile), True),
+    }
 
     anchor_label = {r["file_name"]: r for r in heldout}
     for b in bursts:
@@ -673,9 +785,9 @@ def main(argv=None) -> dict:
     for f in bf:
         f["seq_label"] = seq_label[f["seq_id"]]
     for name, (t, burst) in policies.items():
-        for f, tier in zip(bf, route_all(bf, t, burst)):
+        for f, tier in zip(bf, route_all(bf, t, burst), strict=False):
             f.setdefault("tiers", {})[name] = tier
-        for f, tier in zip(vf, route_all(vf, t, burst)):
+        for f, tier in zip(vf, route_all(vf, t, burst), strict=False):
             f.setdefault("tiers", {})[name] = tier
     anchors = [f for f in bf if f["anchor"]]
     assert len(anchors) == len(heldout)
@@ -688,47 +800,84 @@ def main(argv=None) -> dict:
     for name, (t, burst) in policies.items():
         for f in anchors + vf + bf:
             f["tier"] = f["tiers"][name]
-        hs = {"all": summary(anchors), **{l: summary([f for f in anchors if f["lighting"] == l]) for l in LIGHTINGS}}
+        hs = {
+            "all": summary(anchors),
+            **{lit: summary([f for f in anchors if f["lighting"] == lit]) for lit in LIGHTINGS},
+        }
         vs = summary(vf)
         caught = hs["all"]["vehicles_caught"] + vs["vehicles_caught"]
         n_veh = hs["all"]["n_vehicle"] + vs["n_vehicle"]
         out_policies[name] = {
             "description": POLICY_NAMES[name],
-            "thresholds": {"skip_below": t.skip_below, "small_above": t.small_above, "escalate_above": t.escalate_above,
-                           "use_difficulty": t.use_difficulty, "burst_aware": burst},
+            "thresholds": {
+                "skip_below": t.skip_below,
+                "small_above": t.small_above,
+                "escalate_above": t.escalate_above,
+                "use_difficulty": t.use_difficulty,
+                "burst_aware": burst,
+            },
             "heldout": hs,
             "vehicle_set": vs,
             "vehicles": {"caught": caught, "n": n_veh, "caught_pct": pct(caught, n_veh)},
             "sequences": sequence_summary(bf, seq_label),
             "sweep": sweep(bf, t, burst),
             "audit": audit_summary(anchors, vf, name, audit),
-            "missed": [{k: f.get(k) for k in ("file_name", "label", "lighting", "location", "present", "frame_num", "seq_num_frames")}
-                       | {"burst_max_present": burst_max[f["seq_id"]]} for f in anchors if f["is_animal"] and f["tier"] == "skip"],
+            "missed": [
+                {
+                    k: f.get(k)
+                    for k in ("file_name", "label", "lighting", "location", "present", "frame_num", "seq_num_frames")
+                }
+                | {"burst_max_present": burst_max[f["seq_id"]]}
+                for f in anchors
+                if f["is_animal"] and f["tier"] == "skip"
+            ],
         }
         if name == "v1":
             out_policies[name]["label_noise_candidates"] = [
-                {k: f[k] for k in ("file_name", "lighting", "present", "escalate")} for f in anchors
-                if f["is_empty"] and f["escalate"] >= t.escalate_above]
+                {k: f[k] for k in ("file_name", "lighting", "present", "escalate")}
+                for f in anchors
+                if f["is_empty"] and f["escalate"] >= t.escalate_above
+            ]
     lat = [f["latency_ms"] for f in bf + vf]
     metrics = {
         "thresholds": tfile,
         "questions": questions,
         "state": STATE,
-        "bursts": {"n_sequences": len(seq_label), "n_burst_frames": len(bf), "n_anchor_frames": len(anchors),
-                   "burst_sizes": dict(Counter(int(f["seq_num_frames"]) for f in anchors))},
+        "bursts": {
+            "n_sequences": len(seq_label),
+            "n_burst_frames": len(bf),
+            "n_anchor_frames": len(anchors),
+            "burst_sizes": dict(Counter(int(f["seq_num_frames"]) for f in anchors)),
+        },
         "policies": out_policies,
         "difficulty": difficulty_finding(anchors),
-        "decider_latency_ms": {"n": len(lat), "p50": quantile(lat, 0.5), "p90": quantile(lat, 0.9),
-                               "note": "wall clock around one HTTP call with the 3 production questions, all held-out burst and vehicle frames"},
+        "decider_latency_ms": {
+            "n": len(lat),
+            "p50": quantile(lat, 0.5),
+            "p90": quantile(lat, 0.9),
+            "note": "wall clock around one HTTP call with the 3 production questions, all held-out burst and vehicle frames",
+        },
         "reliability": reliability(anchors),
-        "reliability_by_lighting": {l: reliability([f for f in anchors if f["lighting"] == l]) for l in LIGHTINGS},
+        "reliability_by_lighting": {
+            lit: reliability([f for f in anchors if f["lighting"] == lit]) for lit in LIGHTINGS
+        },
         "cost": cost_model(anchors),
         "nova": nova_baselines(anchors),
         "dataset": dataset_stats(),
-        "tune_reference": next((r for r in json.loads((RESULTS / "wording.json").read_text())["presence"]
-                                if r["wording"] == tfile["chosen_wording"]), None) if (RESULTS / "wording.json").exists() else None,
+        "tune_reference": next(
+            (
+                r
+                for r in json.loads((RESULTS / "wording.json").read_text())["presence"]
+                if r["wording"] == tfile["chosen_wording"]
+            ),
+            None,
+        )
+        if (RESULTS / "wording.json").exists()
+        else None,
         "batching_check": batching_check(),
-        "multi_image": json.loads((RESULTS / "burst_multi_image.json").read_text()) if (RESULTS / "burst_multi_image.json").exists() else None,
+        "multi_image": json.loads((RESULTS / "burst_multi_image.json").read_text())
+        if (RESULTS / "burst_multi_image.json").exists()
+        else None,
         "code_check_skips": [{k: f[k] for k in ("file_name", "label", "check")} for f in bf + vf if f["check"]],
     }
     (RESULTS / "metrics.json").write_text(json.dumps(metrics, indent=2))
@@ -736,10 +885,15 @@ def main(argv=None) -> dict:
     with open(RESULTS / "eval_frames.jsonl", "w") as fh:
         for f in bf + vf:
             fh.write(json.dumps({k: v for k, v in f.items() if k not in ("answers", "tier")}) + "\n")
-    for name, folder, md, title in (("v2", "missed", "missed.md", "Animal frames Trailgate v2 skipped (held-out)"),
-                                    ("v1", "missed_v1", "missed_v1.md", "Animal frames Trailgate v1 skipped (held-out)")):
-        save_gallery([f for f in anchors if f["is_animal"] and f["tiers"][name] == "skip"], audit, folder, md, title, burst_max)
+    for name, folder, md, title in (
+        ("v2", "missed", "missed.md", "Animal frames Trailgate v2 skipped (held-out)"),
+        ("v1", "missed_v1", "missed_v1.md", "Animal frames Trailgate v1 skipped (held-out)"),
+    ):
+        save_gallery(
+            [f for f in anchors if f["is_animal"] and f["tiers"][name] == "skip"], audit, folder, md, title, burst_max
+        )
     from charts import draw_all
+
     draw_all(metrics)
     print(write_markdown(metrics))
     return metrics

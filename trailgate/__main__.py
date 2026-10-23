@@ -1,9 +1,9 @@
 """Trailgate CLI.
 
-  python -m trailgate run <folder or files> [--burst-gap 10 | --no-bursts] [--no-bedrock] [--no-alerts]
-                         [--json out.jsonl] [--digest] [--limit N]
-  python -m trailgate run --manifest data/manifests/heldout_bursts.csv [--images data/images]
-  python -m trailgate agent "Process tonight's card in data/images and tell me what needs me"
+python -m trailgate run <folder or files> [--burst-gap 10 | --no-bursts] [--no-bedrock] [--no-alerts]
+                       [--json out.jsonl] [--digest] [--limit N]
+python -m trailgate run --manifest data/manifests/heldout_bursts.csv [--images data/images]
+python -m trailgate agent "Process tonight's card in data/images and tell me what needs me"
 """
 
 from __future__ import annotations
@@ -108,7 +108,9 @@ def main(argv: list[str] | None = None) -> int:
     sub = parser.add_subparsers(dest="command", required=True)
     p_run = sub.add_parser("run", help="triage frames with the deterministic pipeline")
     p_run.add_argument("paths", nargs="*", help="image files or folders")
-    p_run.add_argument("--manifest", help="CSV with file_name (and seq_id, frame_num, label, lighting); bursts by seq_id")
+    p_run.add_argument(
+        "--manifest", help="CSV with file_name (and seq_id, frame_num, label, lighting); bursts by seq_id"
+    )
     p_run.add_argument("--images", help="image folder for --manifest (default data/images)")
     p_run.add_argument("--burst-gap", type=float, default=10.0, help="seconds between frames of one burst (default 10)")
     p_run.add_argument("--no-bursts", action="store_true", help="route every frame on its own")

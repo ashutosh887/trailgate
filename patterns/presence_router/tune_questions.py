@@ -110,8 +110,14 @@ def load_cache(path: Path, signature: str) -> dict:
     return cache
 
 
-def ask_all(rows: list[dict], questions: dict, cache_path: Path, images: Path, state: str = STATE,
-            client: DeciderClient | None = None) -> dict:
+def ask_all(
+    rows: list[dict],
+    questions: dict,
+    cache_path: Path,
+    images: Path,
+    state: str = STATE,
+    client: DeciderClient | None = None,
+) -> dict:
     """Ask `questions` once per frame, caching raw answers; returns {file_name: cached row}."""
     client = client or DeciderClient()
     signature = question_signature(questions, state)
@@ -224,7 +230,11 @@ def markdown_table(title: str, rows: list[dict], pos_name: str, neg_name: str) -
         "",
         f"Positives: {pos_name} (n={rows[0]['n_pos']}). Negatives: {neg_name} (n={rows[0]['n_neg']}).",
         "",
-        "| Wording | Criteria | AUC | Mean score pos / neg | Best accuracy (at t) | Recall at t=" + f"{rows[0]['ref_threshold']}" + " | Neg below t=" + f"{rows[0]['ref_threshold']}" + " | Zero-miss t | Neg below zero-miss t |",
+        "| Wording | Criteria | AUC | Mean score pos / neg | Best accuracy (at t) | Recall at t="
+        + f"{rows[0]['ref_threshold']}"
+        + " | Neg below t="
+        + f"{rows[0]['ref_threshold']}"
+        + " | Zero-miss t | Neg below zero-miss t |",
         "|---|---|---|---|---|---|---|---|---|",
     ]
     for r in rows:
@@ -258,8 +268,11 @@ def freeze(rows, cache, label_col, positive, negative, ignore, esc_positive, pre
     pk, ek = p_best["wording"], e_best["wording"]
     pos, neg = split_scores(rows, cache, pk, label_col, positive, negative, ignore)
     skip_below = zero_miss_threshold(pos, 0, step)
-    clear = [(score_of(cache[r["file_name"]]["answers"], pk), is_positive(r[label_col], positive, negative))
-             for r in rows if r[label_col] not in ignore and cache[r["file_name"]]["answers"]["difficulty"]["choice"] == "clear"]
+    clear = [
+        (score_of(cache[r["file_name"]]["answers"], pk), is_positive(r[label_col], positive, negative))
+        for r in rows
+        if r[label_col] not in ignore and cache[r["file_name"]]["answers"]["difficulty"]["choice"] == "clear"
+    ]
     clear_neg = max((s for s, p in clear if not p), default=0.0)
     clear_pos = min((s for s, p in clear if p and s > clear_neg), default=1.0)
     small_above = max(skip_below, round((clear_neg + clear_pos) / 2, 2))
@@ -346,11 +359,13 @@ def main(argv=None) -> dict:
         f"## Question wording on the tuning set ({len(rows)} frames, {len(questions)} questions in one Decider call per frame)",
         "",
         "Scored on the tuning locations only. AUC is the chance a random positive frame scores above a random negative one. "
-        "\"Zero-miss t\" is the highest skip threshold (0.01 grid) at which no positive frame in this set falls below it.",
+        '"Zero-miss t" is the highest skip threshold (0.01 grid) at which no positive frame in this set falls below it.',
         "",
         markdown_table("Presence: is there an animal?", presence, pos_name, neg_name),
         "",
-        markdown_table("Escalation: is there a person or vehicle?", escalation, ", ".join(sorted(esc_positive)), "all other frames"),
+        markdown_table(
+            "Escalation: is there a person or vehicle?", escalation, ", ".join(sorted(esc_positive)), "all other frames"
+        ),
         "",
         f"p50 Decider wall time for this {len(questions)}-question call: {result['decider_wall_latency_ms_p50']:.0f} ms.",
     ]
