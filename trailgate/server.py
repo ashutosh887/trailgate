@@ -42,7 +42,7 @@ from trailgate.results import FrameResult, ModelCall
 ROOT = Path(__file__).resolve().parent.parent
 WEB = Path(__file__).resolve().parent / "web"
 IMAGES = ROOT / "data" / "images"
-MANIFESTS = ROOT / "data" / "manifests"
+MANIFESTS = ROOT / "data"
 RESULTS = ROOT / "results"
 OUTBOX = Path(os.environ.get("TRAILGATE_OUTBOX", ROOT / "outbox"))
 

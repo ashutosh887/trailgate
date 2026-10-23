@@ -45,7 +45,7 @@ def main() -> dict:
             per_frame[row["file_name"]] = row
     bursts = defaultdict(list)
     label = {}
-    for b in read_manifest(ROOT / "data/manifests/tune_bursts.csv"):
+    for b in read_manifest(ROOT / "data/tune_bursts.csv"):
         bursts[b["seq_id"]].append(b)
         if b["anchor"] == "1":
             label[b["seq_id"]] = audit.get(b["file_name"], b["label"])

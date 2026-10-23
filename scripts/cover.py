@@ -1,4 +1,4 @@
-"""Render docs/images/cover.png: six held-out Caltech Camera Traps frames, each stamped with
+"""Render assets/cover.png: six held-out Caltech Camera Traps frames, each stamped with
 the route Trailgate gave it and the Decider probability behind that route (results/decider_answers.jsonl)."""
 
 from __future__ import annotations
@@ -60,7 +60,7 @@ def main() -> None:
         draw.text((x + 20, y + TILE_H - 36), note, font=font(20), fill="#c9d3cc")
         draw.text((x + TILE_W - 20, y + TILE_H - 68), label, font=font(20, mono=True), fill="#e8efe9", anchor="ra")
 
-    out = ROOT / "docs/images/cover.png"
+    out = ROOT / "assets/cover.png"
     canvas.save(out)
     print(out)
 

@@ -5,7 +5,7 @@ lever, so measure it. Every wording is asked in ONE Decider call per frame, so t
 image is encoded once. Answers are cached to a JSONL file and the run resumes.
 
     python -m patterns.presence_router.tune_questions \
-        --manifest data/manifests/tune.csv --negative empty --ignore car,person \
+        --manifest data/tune.csv --negative empty --ignore car,person \
         --escalate-positive car,person --freeze results/thresholds.json
 
 A frame counts as a positive for presence when its label is in --positive, or, when
@@ -300,7 +300,7 @@ def freeze(rows, cache, label_col, positive, negative, ignore, esc_positive, pre
 
 def main(argv=None) -> dict:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--manifest", default=str(ROOT / "data/manifests/tune.csv"))
+    ap.add_argument("--manifest", default=str(ROOT / "data/tune.csv"))
     ap.add_argument("--images", default=str(ROOT / "data/images"))
     ap.add_argument("--label-col", default="label")
     ap.add_argument("--positive", default="", help="comma-separated presence-positive labels")

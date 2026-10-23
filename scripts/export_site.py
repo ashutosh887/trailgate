@@ -181,10 +181,20 @@ def main() -> None:
     for sub in ("data", "frames", "thumbs"):
         (out / sub).mkdir(parents=True, exist_ok=True)
 
-    status = server.status_info(probe_decider=False)
-    status.update(mode="replay", record=None, static=True, repo=REPO)
-    status["decider"]["reachable"] = False
-    status["pipeline"] = {"available": False, "detail": "static replay: no pipeline"}
+    info = server.status_info(probe_decider=False)
+    status = {
+        "mode": "replay",
+        "static": True,
+        "repo": REPO,
+        "record": None,
+        "decider": {"reachable": False},
+        "pipeline": {"available": False},
+        "replay": {"frames": info["replay"]["frames"]},
+        "reels": info["reels"],
+        "questions": info["questions"],
+        "thresholds": info["thresholds"],
+        "difficulty_note": info["difficulty_note"],
+    }
 
     full: set[str] = set()
     thumbs: set[str] = set()
@@ -209,7 +219,7 @@ def main() -> None:
 
     shutil.copytree(server.WEB, out / "static", ignore=shutil.ignore_patterns("index.html"))
     (out / "favicon.svg").write_text((server.WEB / "favicon.svg").read_text())
-    with Image.open(ROOT / "docs" / "images" / "cover.png") as img:
+    with Image.open(ROOT / "assets" / "cover.png") as img:
         img = img.convert("RGB")
         img.thumbnail((OG_WIDTH, OG_WIDTH))
         img.save(out / "og.jpg", "JPEG", quality=85, optimize=True, progressive=True)

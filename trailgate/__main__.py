@@ -2,7 +2,7 @@
 
 python -m trailgate run <folder or files> [--burst-gap 10 | --no-bursts] [--no-bedrock] [--no-alerts]
                        [--json out.jsonl] [--digest] [--limit N]
-python -m trailgate run --manifest data/manifests/heldout_bursts.csv [--images data/images]
+python -m trailgate run --manifest data/heldout_bursts.csv [--images data/images]
 python -m trailgate agent "Process tonight's card in data/images and tell me what needs me"
 """
 

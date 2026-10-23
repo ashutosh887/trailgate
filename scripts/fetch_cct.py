@@ -122,10 +122,8 @@ def main() -> None:
     with ThreadPoolExecutor(8) as pool:
         list(pool.map(lambda f: fetch(f, images), every.values()))
 
-    manifests = DATA / "manifests"
-    manifests.mkdir(parents=True, exist_ok=True)
     for name, rows in sets.items():
-        with open(manifests / f"{name}.csv", "w", newline="") as fh:
+        with open(DATA / f"{name}.csv", "w", newline="") as fh:
             w = csv.DictWriter(fh, fieldnames=["id", "file_name", "label", "location", "captured", "lighting"])
             w.writeheader()
             for f in rows:

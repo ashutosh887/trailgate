@@ -7,7 +7,7 @@ v2 policy: confidence band on P(animal) (difficulty not used), burst-aware skip.
   escalate_above  unchanged from v1 (same question, same tuning frames)
 
 Inputs: results/tune_answers_production.jsonl (the 3-question production call on every frame of
-every tuning burst), data/manifests/tune_bursts.csv, results/label_audit.csv, and the v1 values
+every tuning burst), data/tune_bursts.csv, results/label_audit.csv, and the v1 values
 in results/thresholds.json.
 """
 
@@ -43,8 +43,8 @@ def main() -> dict:
         if line.strip():
             row = json.loads(line)
             answers[row["file_name"]] = row["answers"]
-    anchors = read_csv(ROOT / "data/manifests/tune.csv")
-    bursts = read_csv(ROOT / "data/manifests/tune_bursts.csv")
+    anchors = read_csv(ROOT / "data/tune.csv")
+    bursts = read_csv(ROOT / "data/tune_bursts.csv")
 
     frames = []
     for r in anchors:

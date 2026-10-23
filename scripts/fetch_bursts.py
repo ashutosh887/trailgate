@@ -2,7 +2,7 @@
 
 CCT labels whole sequences, so a frame labelled "deer" can be the one after the deer left.
 For each manifest frame this writes all frames of its sequence (the frame itself included)
-to data/manifests/<name>_bursts.csv with seq_id, frame_num, seq_num_frames and anchor.
+to data/<name>_bursts.csv with seq_id, frame_num, seq_num_frames and anchor.
 
     .venv/bin/python scripts/fetch_bursts.py heldout tune
 """
@@ -76,7 +76,7 @@ def main() -> None:
     labels = load_labels()
     images = DATA / "images"
     for name in args.names:
-        with open(DATA / "manifests" / f"{name}.csv", newline="") as f:
+        with open(DATA / f"{name}.csv", newline="") as f:
             manifest = list(csv.DictReader(f))
         rows = burst_rows(labels, manifest)
         todo = [r for r in rows if not (images / r["file_name"]).exists()]
@@ -84,7 +84,7 @@ def main() -> None:
             list(pool.map(lambda r: fetch(r, images), todo))
         for r in rows:
             r["lighting"] = "night_ir" if is_infrared(images / r["file_name"]) else "day"
-        with open(DATA / "manifests" / f"{name}_bursts.csv", "w", newline="") as fh:
+        with open(DATA / f"{name}_bursts.csv", "w", newline="") as fh:
             w = csv.DictWriter(fh, fieldnames=FIELDS)
             w.writeheader()
             w.writerows(rows)

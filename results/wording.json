@@ -1,5 +1,5 @@
 {
-  "manifest": "data/manifests/tune.csv",
+  "manifest": "data/tune.csv",
   "n_frames": 80,
   "labels_changed_by_audit": 2,
   "questions_per_call": 9,

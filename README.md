@@ -4,7 +4,7 @@
 
 Built for the AWS Builder Center *Agent Experience Hackathon: Strands Decider*. Tags: `#strands-decider-2b` `#model-routing`.
 
-![Six held-out Caltech Camera Traps frames, each stamped with the route Trailgate gave it](docs/images/cover.png)
+![Six held-out Caltech Camera Traps frames, each stamped with the route Trailgate gave it](assets/cover.png)
 
 ## The problem
 
@@ -25,7 +25,7 @@ Every frame gets one call to Strands Decider 2B, running locally with its vision
 
 Thresholds were set on a separate tuning set of 13 camera locations and frozen before the held-out run (`results/thresholds.json`, rule written next to each value).
 
-![Architecture](docs/images/architecture.png)
+![Architecture](assets/architecture.png)
 
 ## The decision handed to Decider
 
@@ -162,7 +162,7 @@ strands-decider serve StrandsAgents/strands-decider-2B-qwen3.5-v1-2610 --vision 
 python scripts/fetch_cct.py                         # tuning, held-out and vehicle frames (seeded)
 python scripts/fetch_bursts.py                      # the rest of each held-out burst
 python -m trailgate run /path/to/card --digest                                   # triage a card, bursts grouped by EXIF time
-python -m trailgate run --manifest data/manifests/heldout_bursts.csv --no-bedrock  # held-out bursts, Decider routing only
+python -m trailgate run --manifest data/heldout_bursts.csv --no-bedrock  # held-out bursts, Decider routing only
 python -m trailgate agent "Process tonight's card in data/images and tell me what needs me"
 python -m trailgate.server                          # ranger console on http://127.0.0.1:8000
 ```
@@ -190,12 +190,12 @@ trailgate/                  pipeline, Bedrock layer, alerts, Strands agent, CLI,
 examples/parcel_photos.py   the pattern in a second agent
 scripts/                    data fetch, threshold freezing, evaluation, charts, Nova baseline
 results/                    raw Decider answers, metrics, charts, missed-animal gallery, label audit
-data/manifests/             the exact frames in each split
-docs/images/                cover image and architecture diagram
+data/                       the exact frames in each split (images download to data/images/)
+assets/                     cover image and architecture diagram
 ```
 
 ## Data and licence
 
-Images and labels: [Caltech Camera Traps](https://lila.science/datasets/caltech-camera-traps) (Beery et al., ECCV 2018), Community Data License Agreement, permissive variant. Images are not stored in this repository; `scripts/fetch_cct.py` downloads the exact frames listed in `data/manifests/`.
+Images and labels: [Caltech Camera Traps](https://lila.science/datasets/caltech-camera-traps) (Beery et al., ECCV 2018), Community Data License Agreement, permissive variant. Images are not stored in this repository; `scripts/fetch_cct.py` downloads the exact frames listed in `data/`.
 
 Code: Apache-2.0.

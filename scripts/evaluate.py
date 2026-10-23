@@ -2,7 +2,7 @@
 
 Decider is asked ONCE per frame with the production questions (questions.build_questions, the
 exact call the router makes) on every held-out frame, every other frame of its camera burst
-(data/manifests/heldout_bursts.csv) and the vehicle set. Raw answers are cached to
+(data/heldout_bursts.csv) and the vehicle set. Raw answers are cached to
 results/decider_answers.jsonl so the run resumes. Frozen thresholds from results/thresholds.json
 (v2 at the top level, v1 under "v1") are applied with PresenceRouterCore.decide and decide_burst.
 Nova baselines are merged in when results/nova_{lite,pro}.jsonl exist.
@@ -755,9 +755,9 @@ def main(argv=None) -> dict:
     args = ap.parse_args(argv)
 
     questions = build_questions()
-    heldout = read_manifest(ROOT / "data/manifests/heldout.csv")
-    bursts = read_manifest(ROOT / "data/manifests/heldout_bursts.csv")
-    vehicle = read_manifest(ROOT / "data/manifests/vehicle.csv")
+    heldout = read_manifest(ROOT / "data/heldout.csv")
+    bursts = read_manifest(ROOT / "data/heldout_bursts.csv")
+    vehicle = read_manifest(ROOT / "data/vehicle.csv")
     if args.no_ask:
         cache = load_cache(Path(args.cache), question_signature(questions, STATE))
     else:

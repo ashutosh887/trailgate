@@ -76,7 +76,7 @@ def run_tier(tier: str, rows: list[dict], limit: int | None, max_errors: int) ->
 def main(argv=None) -> None:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--tier", choices=["small", "large", "both"], default="both")
-    ap.add_argument("--manifest", default=str(ROOT / "data/manifests/heldout.csv"))
+    ap.add_argument("--manifest", default=str(ROOT / "data/heldout.csv"))
     ap.add_argument("--limit", type=int, default=None)
     ap.add_argument("--max-errors", type=int, default=3)
     args = ap.parse_args(argv)
