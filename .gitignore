@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.venv/
+.env
+.DS_Store
+*.log
+*.egg-info/
+data/images/
+data/caltech_images_*.json
+data/*.zip
+outbox/
