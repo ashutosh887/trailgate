@@ -1,0 +1,40 @@
+# Trailgate
+
+> Camera-trap triage agent. Strands Decider 2B (local, vision, one forward pass) answers three typed questions about every camera-trap frame in one call, and plain Python turns the probabilities into a route: skip (no model, $0), Amazon Nova Lite (Decider confident there is an animal), Amazon Nova Pro (Decider unsure), or a ranger alert (person or vehicle). Built for the AWS Builder Center "Agent Experience Hackathon: Strands Decider". Tags: #strands-decider-2b #model-routing. Licence: Apache-2.0.
+
+Repository: https://github.com/ashutosh887/trailgate
+Dataset: Caltech Camera Traps, https://lila.science/datasets/caltech-camera-traps (CDLA-Permissive)
+
+## The decision handed to Decider
+
+- `present` (noul): "Is there an animal anywhere in this photo, even partly hidden or at the edge?" with explicit true/false criteria.
+- `escalate` (noul): "Is there a person or a vehicle in this photo?" with explicit true/false criteria.
+- `difficulty` (choice: clear, hard): asked, not used for routing; measured as a weak signal (AUC 0.67 night vs day).
+- Policy v2, thresholds frozen on a tuning set of 13 camera locations: alert if P(person or vehicle) >= 0.54 in any frame of the burst; skip if the highest P(animal) in the burst < 0.41; Nova Lite if P(animal) >= 0.72; otherwise Nova Pro.
+- Pattern tag #model-routing: the cheapest tier is no model at all. Without Decider the agent cannot skip, pick a tier, or alert.
+
+## Measured results (held-out: 600 frames, 71 camera locations never used for tuning)
+
+- Empty frames skipped: 150/310 (48.4%); day 51.8%, night infrared 39.0%.
+- Animal frames missed: 9/271 (3.3%); checked by eye, 1 of 9 clearly shows an animal.
+- Vehicles caught: 57/59.
+- 3 of 4 alerts on frames without a `car` label show people that the dataset labels `empty` (no person class); 1 is a true false alert.
+- Calibration: P(animal) >= 0.9 had an animal in 171 of 172 frames.
+- Decider latency: p50 472 ms, p90 580 ms per frame over 1,119 calls on an Apple M5 laptop (PyTorch MPS), $0 per call.
+- Cost per 10,000 frames, estimated from Bedrock list prices and Nova image token counts (Bedrock quota on the build account was 0, so not measured): Nova Pro on every frame $16.03, Trailgate v2 $5.55, Nova Lite on every frame $1.20.
+- v1 (route "hard" frames to Nova Pro) skipped 41.9% of empty frames, missed 16/271 animal frames and cost an estimated $10.27; the v1 to v2 change is documented with an ablation.
+
+## Key files
+
+- `patterns/presence_router/`: the reusable decision pattern. `questions.py` (typed questions), `router.py` (framework-free routing, burst rule), `handler.py` (Strands `InterventionHandler`: `Deny` skips, `Transform` sets the model tier, fails open), `tune_questions.py` (wording table), `README.md` (drop-in and threshold guide).
+- `trailgate/pipeline.py`: frame check, burst-aware routing, Bedrock calls by tier. `trailgate/bedrock.py`: Nova Converse calls, prices, token estimates. `trailgate/agent.py`: Strands agent with `archive_empty`, `label_species`, `alert_ranger`, `daily_digest`. `trailgate/server.py` + `trailgate/web/`: ranger console.
+- `examples/parcel_photos.py`: the same pattern in a delivery-photo agent.
+- `results/metrics.md`: every table. `results/decider_answers.jsonl`: every raw Decider answer. `results/missed.md`: missed-animal gallery. `results/label_audit.csv`: frames checked by eye. `results/thresholds.json`: frozen thresholds and the rule behind each.
+- `docs/article.md`: the Builder Center article.
+
+## Limits
+
+- Zero-shot vision; thresholds hold for these cameras and need checking on new ones (AUC 0.954 on tuning, 0.900 on held-out).
+- Night infrared is weaker.
+- Bedrock costs and Nova species accuracy are not yet measured; `scripts/run_nova_baseline.py` measures them on an account with Nova quota.
+- Small sets: 0 errors on a subset means none on these frames, not solved.
