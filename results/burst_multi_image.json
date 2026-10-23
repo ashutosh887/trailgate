@@ -1,0 +1,262 @@
+{
+  "n_bursts": 29,
+  "n_animal_bursts": 28,
+  "n_empty_bursts": 1,
+  "auc_multi": 0.8571,
+  "auc_max": 0.8929,
+  "mean_abs_diff": 0.0269,
+  "agree_at_skip": 29,
+  "animal_below_multi": 0,
+  "animal_below_max": 0,
+  "empty_below_multi": 0,
+  "empty_below_max": 0,
+  "latency_multi_p50": 620.9,
+  "latency_frames_p50": 1472.7,
+  "skip_below": 0.41,
+  "state": "Frames from one burst of a wildlife camera trap, taken seconds apart.",
+  "question": {
+    "present": {
+      "type": "noul",
+      "instructions": "Is there an animal anywhere in these photos, even partly hidden or at the edge?",
+      "criteria": {
+        "true": "an animal or part of one is visible",
+        "false": "only vegetation, ground, sky, or camera artefacts"
+      }
+    }
+  },
+  "rows": [
+    {
+      "seq_id": "6f147428-5567-11e8-8314-dca9047ef277",
+      "label": "bird",
+      "multi": 0.9465,
+      "max": 0.9561,
+      "wall_latency_ms": 2670.2,
+      "frames_latency_ms": 4845.7
+    },
+    {
+      "seq_id": "7013245c-5567-11e8-b539-dca9047ef277",
+      "label": "rabbit",
+      "multi": 0.9458,
+      "max": 0.953,
+      "wall_latency_ms": 631.2,
+      "frames_latency_ms": 1396.5
+    },
+    {
+      "seq_id": "701579bd-5567-11e8-aef2-dca9047ef277",
+      "label": "skunk",
+      "multi": 0.9422,
+      "max": 0.9561,
+      "wall_latency_ms": 621.5,
+      "frames_latency_ms": 1472.7
+    },
+    {
+      "seq_id": "6f142451-5567-11e8-8176-dca9047ef277",
+      "label": "bird",
+      "multi": 0.9468,
+      "max": 0.9509,
+      "wall_latency_ms": 620.1,
+      "frames_latency_ms": 1504.7
+    },
+    {
+      "seq_id": "6f1e20cf-5567-11e8-891e-dca9047ef277",
+      "label": "rabbit",
+      "multi": 0.9293,
+      "max": 0.9011,
+      "wall_latency_ms": 628.2,
+      "frames_latency_ms": 1483.9
+    },
+    {
+      "seq_id": "701a1df3-5567-11e8-88b4-dca9047ef277",
+      "label": "fox",
+      "multi": 0.9524,
+      "max": 0.9544,
+      "wall_latency_ms": 686.1,
+      "frames_latency_ms": 1060.3
+    },
+    {
+      "seq_id": "6f1ee71e-5567-11e8-b2bc-dca9047ef277",
+      "label": "raccoon",
+      "multi": 0.9425,
+      "max": 0.9471,
+      "wall_latency_ms": 618.4,
+      "frames_latency_ms": 1533.7
+    },
+    {
+      "seq_id": "701587f5-5567-11e8-8f7f-dca9047ef277",
+      "label": "bird",
+      "multi": 0.6427,
+      "max": 0.636,
+      "wall_latency_ms": 624.8,
+      "frames_latency_ms": 1463.4
+    },
+    {
+      "seq_id": "6f1e7a23-5567-11e8-8598-dca9047ef277",
+      "label": "raccoon",
+      "multi": 0.6901,
+      "max": 0.6433,
+      "wall_latency_ms": 479.1,
+      "frames_latency_ms": 964.0999999999999
+    },
+    {
+      "seq_id": "6f15fba6-5567-11e8-819f-dca9047ef277",
+      "label": "bobcat",
+      "multi": 0.8709,
+      "max": 0.8785,
+      "wall_latency_ms": 623.1,
+      "frames_latency_ms": 1376.1
+    },
+    {
+      "seq_id": "70112a94-5567-11e8-946f-dca9047ef277",
+      "label": "bird",
+      "multi": 0.8979,
+      "max": 0.892,
+      "wall_latency_ms": 625.4,
+      "frames_latency_ms": 1403.2
+    },
+    {
+      "seq_id": "6f158733-5567-11e8-b1bb-dca9047ef277",
+      "label": "opossum",
+      "multi": 0.9438,
+      "max": 0.9307,
+      "wall_latency_ms": 617.5,
+      "frames_latency_ms": 1422.4
+    },
+    {
+      "seq_id": "6f1ea8d1-5567-11e8-9e88-dca9047ef277",
+      "label": "raccoon",
+      "multi": 0.9373,
+      "max": 0.9376,
+      "wall_latency_ms": 619.9,
+      "frames_latency_ms": 1753.3
+    },
+    {
+      "seq_id": "6f1d7778-5567-11e8-8c8e-dca9047ef277",
+      "label": "raccoon",
+      "multi": 0.9463,
+      "max": 0.9595,
+      "wall_latency_ms": 618.6,
+      "frames_latency_ms": 1402.0
+    },
+    {
+      "seq_id": "6f13f9a1-5567-11e8-a762-dca9047ef277",
+      "label": "bird",
+      "multi": 0.9363,
+      "max": 0.9497,
+      "wall_latency_ms": 647.6,
+      "frames_latency_ms": 1424.8000000000002
+    },
+    {
+      "seq_id": "6f1e788a-5567-11e8-94a6-dca9047ef277",
+      "label": "squirrel",
+      "multi": 0.8426,
+      "max": 0.9055,
+      "wall_latency_ms": 634.0,
+      "frames_latency_ms": 1446.0
+    },
+    {
+      "seq_id": "6f165e1e-5567-11e8-94c4-dca9047ef277",
+      "label": "bobcat",
+      "multi": 0.9357,
+      "max": 0.9564,
+      "wall_latency_ms": 623.5,
+      "frames_latency_ms": 1451.1
+    },
+    {
+      "seq_id": "6f14fd28-5567-11e8-b60a-dca9047ef277",
+      "label": "opossum",
+      "multi": 0.6636,
+      "max": 0.5632,
+      "wall_latency_ms": 497.3,
+      "frames_latency_ms": 1096.0
+    },
+    {
+      "seq_id": "701a3d82-5567-11e8-9758-dca9047ef277",
+      "label": "bird",
+      "multi": 0.7982,
+      "max": 0.7425,
+      "wall_latency_ms": 622.2,
+      "frames_latency_ms": 1497.3
+    },
+    {
+      "seq_id": "6f0a6dae-5567-11e8-8000-dca9047ef277",
+      "label": "cat",
+      "multi": 0.5017,
+      "max": 0.4174,
+      "wall_latency_ms": 618.3,
+      "frames_latency_ms": 1929.4
+    },
+    {
+      "seq_id": "701837d9-5567-11e8-95c3-dca9047ef277",
+      "label": "deer",
+      "multi": 0.9734,
+      "max": 0.9784,
+      "wall_latency_ms": 620.4,
+      "frames_latency_ms": 1511.5
+    },
+    {
+      "seq_id": "6f150047-5567-11e8-a9d0-dca9047ef277",
+      "label": "empty",
+      "multi": 0.6693,
+      "max": 0.5943,
+      "wall_latency_ms": 616.8,
+      "frames_latency_ms": 1724.0
+    },
+    {
+      "seq_id": "70112d97-5567-11e8-964e-dca9047ef277",
+      "label": "skunk",
+      "multi": 0.9388,
+      "max": 0.9572,
+      "wall_latency_ms": 618.6,
+      "frames_latency_ms": 1527.3
+    },
+    {
+      "seq_id": "6f136814-5567-11e8-be9e-dca9047ef277",
+      "label": "rabbit",
+      "multi": 0.5641,
+      "max": 0.4609,
+      "wall_latency_ms": 620.9,
+      "frames_latency_ms": 1793.8
+    },
+    {
+      "seq_id": "6f141551-5567-11e8-bde9-dca9047ef277",
+      "label": "dog",
+      "multi": 0.9461,
+      "max": 0.9542,
+      "wall_latency_ms": 621.9,
+      "frames_latency_ms": 1556.3
+    },
+    {
+      "seq_id": "6f159223-5567-11e8-acc7-dca9047ef277",
+      "label": "opossum",
+      "multi": 0.8922,
+      "max": 0.8539,
+      "wall_latency_ms": 616.2,
+      "frames_latency_ms": 1553.8000000000002
+    },
+    {
+      "seq_id": "6f14092b-5567-11e8-b72c-dca9047ef277",
+      "label": "dog",
+      "multi": 0.7709,
+      "max": 0.758,
+      "wall_latency_ms": 620.1,
+      "frames_latency_ms": 1398.7
+    },
+    {
+      "seq_id": "6f1d1e4a-5567-11e8-a844-dca9047ef277",
+      "label": "opossum",
+      "multi": 0.9395,
+      "max": 0.9467,
+      "wall_latency_ms": 842.2,
+      "frames_latency_ms": 1904.2
+    },
+    {
+      "seq_id": "6f1e2cb8-5567-11e8-bdff-dca9047ef277",
+      "label": "raccoon",
+      "multi": 0.9479,
+      "max": 0.96,
+      "wall_latency_ms": 620.9,
+      "frames_latency_ms": 1384.4
+    }
+  ],
+  "adopted": "no: per-frame calls with max over the burst are kept"
+}

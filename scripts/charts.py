@@ -65,67 +65,88 @@ def reliability_chart(metrics: dict) -> None:
 
 
 def tradeoff_chart(metrics: dict) -> None:
-    sweep = metrics["sweep"]
-    frozen = metrics["thresholds"]["skip_below"]
-    n_animal = metrics["heldout"]["all"]["n_animal"]
-    fig, ax = plt.subplots(figsize=(6.8, 4.4))
+    pol = metrics["policies"]
+    n_animal = pol["v1"]["heldout"]["all"]["n_animal"]
+    n_frames = pol["v1"]["heldout"]["all"]["n_frames"]
+    empty_share = pol["v1"]["heldout"]["all"]["n_empty"] / n_frames * 100
+    fig, ax = plt.subplots(figsize=(6.8, 4.6))
     fig.patch.set_facecolor("white")
-    x = [r["frames_skipped_pct"] for r in sweep]
-    y = [r["animals_missed"] for r in sweep]
-    ax.plot(x, y, color=BLUE, linewidth=2, drawstyle="steps-post")
-    last_x = -10.0
-    for r in sweep:
-        if round(r["skip_below"] * 100) % 10 == 0 and 0 < r["skip_below"] < 1:
-            ax.plot(r["frames_skipped_pct"], r["animals_missed"], "o", color=BLUE, markersize=5, markeredgecolor="white")
-            if r["frames_skipped_pct"] - last_x >= 5 and abs(r["skip_below"] - frozen) > 0.04:
-                ax.annotate(f"{r['skip_below']:.1f}", (r["frames_skipped_pct"], r["animals_missed"]), textcoords="offset points",
-                            xytext=(-5, 6), fontsize=8, color=INK2, ha="right")
-                last_x = r["frames_skipped_pct"]
-    f = min(sweep, key=lambda r: abs(r["skip_below"] - frozen))
-    ax.plot(f["frames_skipped_pct"], f["animals_missed"], "o", color=ORANGE, markersize=10, markeredgecolor="white", markeredgewidth=2)
-    ax.annotate(f"frozen skip_below={frozen}\n{f['frames_skipped_pct']}% of frames skipped, {f['animals_missed']} of {n_animal} animals missed",
-                (f["frames_skipped_pct"], f["animals_missed"]), xytext=(4, max(y) * 0.45), textcoords="data", fontsize=9, color=INK,
-                arrowprops={"arrowstyle": "-", "color": INK2, "linewidth": 0.8})
-    ax.axvline(metrics["heldout"]["all"]["n_empty"] / metrics["heldout"]["all"]["n_frames"] * 100, color=GREY, linewidth=1, linestyle="--")
-    ax.text(metrics["heldout"]["all"]["n_empty"] / metrics["heldout"]["all"]["n_frames"] * 100 + 0.8, max(y) * 0.95,
-            "share of frames\nthat are empty", fontsize=8, color=INK2, va="top")
-    ax.set_xlabel("Frames skipped, no model called (% of held-out)", color=INK2, fontsize=9)
+    top = 0
+    specs = (("v1", GREY, "v1: per frame", metrics["thresholds"]["v1"]["skip_below"], (4, 0.62)),
+             ("v2", BLUE, "v2: max over the burst", metrics["thresholds"]["skip_below"], (4, 0.36)))
+    for name, color, label, frozen, (tx, ty) in specs:
+        sw = pol[name]["sweep"]
+        x = [r["frames_skipped_pct"] for r in sw]
+        y = [r["animals_missed"] for r in sw]
+        top = max(top, max(y))
+        ax.plot(x, y, color=color, linewidth=2, drawstyle="steps-post", label=label)
+        f = min(sw, key=lambda r: abs(r["skip_below"] - frozen))
+        ax.plot(f["frames_skipped_pct"], f["animals_missed"], "o", color=ORANGE if name == "v2" else INK2, markersize=9,
+                markeredgecolor="white", markeredgewidth=2, zorder=5)
+        ax.annotate(f"{name}, frozen skip_below={frozen}:\n{f['frames_skipped_pct']}% skipped, {f['animals_missed']} of {n_animal} animals missed",
+                    (f["frames_skipped_pct"], f["animals_missed"]), xytext=(tx, top * ty if top else 1), textcoords="data",
+                    fontsize=8.5, color=INK, arrowprops={"arrowstyle": "-", "color": INK2, "linewidth": 0.8})
+    for r in pol["v2"]["sweep"]:
+        if round(r["skip_below"] * 100) % 10 == 0 and 0.2 <= r["skip_below"] <= 0.9:
+            ax.annotate(f"{r['skip_below']:.1f}", (r["frames_skipped_pct"], r["animals_missed"]), textcoords="offset points",
+                        xytext=(4, -11), fontsize=7.5, color=BLUE)
+    ax.axvline(empty_share, color=GREY, linewidth=1, linestyle="--")
+    ax.text(empty_share + 0.8, top * 0.97, "share of frames\nthat are empty", fontsize=8, color=INK2, va="top")
+    ax.set_xlabel("Held-out frames skipped, no model called (%)", color=INK2, fontsize=9)
     ax.set_ylabel(f"Animal frames skipped (of {n_animal})", color=INK2, fontsize=9)
     ax.set_xlim(0, 100)
-    ax.set_ylim(bottom=-max(1, max(y) * 0.02))
+    ax.set_ylim(bottom=-max(1, top * 0.02))
     style(ax, "The safety knob: skip more frames, miss more animals",
-          f"Held-out set, {metrics['heldout']['all']['n_frames']} frames. Each dot is a skip_below value; other thresholds frozen.")
+          f"Held-out set, {n_frames} frames. Blue labels: v2 skip_below values. Other thresholds frozen per policy.")
+    ax.legend(frameon=False, fontsize=8, loc="lower right", labelcolor=INK2)
     save(fig, "tradeoff.png")
 
 
 def day_night_chart(metrics: dict) -> None:
-    h = metrics["heldout"]
-    groups = [
-        ("Empty frames skipped", "empty_skipped", "n_empty"),
-        ("Animal frames missed", "animals_missed", "n_animal"),
-        ("All frames skipped", "frames_skipped", "n_frames"),
-    ]
-    fig, ax = plt.subplots(figsize=(6.8, 4.2))
+    pol = metrics["policies"]
+    groups = [("Empty frames skipped", "empty_skipped", "n_empty"), ("Animal frames missed", "animals_missed", "n_animal")]
+    series = [("v1", "day", BLUE, 0.45), ("v2", "day", BLUE, 1.0), ("v1", "night_ir", VIOLET, 0.45), ("v2", "night_ir", VIOLET, 1.0)]
+    fig, ax = plt.subplots(figsize=(7.2, 4.4))
     fig.patch.set_facecolor("white")
-    width = 0.36
-    for i, key in enumerate(("day", "night_ir")):
-        s = h[key]
-        xs = [g + (i - 0.5) * (width + 0.02) for g in range(len(groups))]
+    width = 0.19
+    for i, (name, light, color, alpha) in enumerate(series):
+        s = pol[name]["heldout"][light]
+        xs = [g + (i - 1.5) * (width + 0.015) for g in range(len(groups))]
         vals = [100 * s[a] / s[b] if s[b] else 0 for _, a, b in groups]
-        ax.bar(xs, vals, width=width, color=LIGHT[key], label=f"{LIGHT_NAME[key]} (AUC {s['presence_auc_animal_vs_empty']})")
+        ax.bar(xs, vals, width=width, color=color, alpha=alpha, label=f"{name}, {LIGHT_NAME[light]}")
         for x, v, (_, a, b) in zip(xs, vals, groups):
-            ax.text(x, v + 1.5, f"{v:.0f}%\n{s[a]}/{s[b]}", ha="center", fontsize=8, color=INK)
+            ax.text(x, v + 1.5, f"{v:.0f}%\n{s[a]}/{s[b]}", ha="center", fontsize=7.5, color=INK)
     ax.set_xticks(range(len(groups)), [g[0] for g in groups], fontsize=9, color=INK2)
-    ax.set_ylim(0, 112)
+    ax.set_ylim(0, 100)
     ax.set_ylabel("% of frames in the group", color=INK2, fontsize=9)
-    style(ax, "Day against night (infrared), same frozen thresholds",
-          "Held-out set. AUC: Decider P(animal), animal against empty frames.")
+    style(ax, "Day against night (infrared): v1 and v2", "Held-out frames, thresholds frozen on the tuning set. Pale bars: v1.")
     ax.grid(axis="x", visible=False)
-    ax.legend(frameon=False, fontsize=8, loc="upper right", labelcolor=INK2)
+    ax.legend(frameon=False, fontsize=8, loc="upper right", labelcolor=INK2, ncol=2)
     save(fig, "day_night.png")
+
+
+def cost_chart(metrics: dict) -> None:
+    c = metrics["cost"]
+    rows = [("Nova Pro on every frame", c["nova_pro_every_frame"], GREY),
+            ("Trailgate v1", c["policies"]["v1"]["routed"], GREY),
+            ("Trailgate v2", c["policies"]["v2"]["routed"], BLUE),
+            ("Nova Lite on every frame", c["nova_lite_every_frame"], GREY)]
+    fig, ax = plt.subplots(figsize=(6.8, 3.0))
+    fig.patch.set_facecolor("white")
+    ys = list(range(len(rows)))[::-1]
+    ax.barh(ys, [r[1] for r in rows], color=[r[2] for r in rows], height=0.55)
+    for y, (_, v, _) in zip(ys, rows):
+        ax.text(v + max(r[1] for r in rows) * 0.01, y, f"${v:.2f}", va="center", fontsize=9, color=INK)
+    ax.set_yticks(ys, [r[0] for r in rows], fontsize=9, color=INK2)
+    ax.set_xlim(0, max(r[1] for r in rows) * 1.15)
+    ax.set_xlabel("Estimated $ per 10,000 frames (published token formula and prices)", color=INK2, fontsize=9)
+    style(ax, "What 10,000 camera-trap frames cost", "Held-out mix; Decider runs locally at $0 per call.")
+    ax.grid(axis="y", visible=False)
+    save(fig, "cost.png")
 
 
 def draw_all(metrics: dict, frames=None) -> None:
     reliability_chart(metrics)
     tradeoff_chart(metrics)
     day_night_chart(metrics)
+    cost_chart(metrics)

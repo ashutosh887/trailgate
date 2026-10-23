@@ -1,15 +1,32 @@
 {
   "thresholds": {
-    "skip_below": 0.37,
-    "small_above": 0.62,
+    "skip_below": 0.41,
+    "small_above": 0.72,
     "escalate_above": 0.54,
+    "use_difficulty": false,
+    "burst_aware": true,
     "chosen_wording": "p_criteria",
     "chosen_escalate_wording": "e_criteria",
-    "method": "Tuning set only. Wording: highest AUC (escalation ties broken by the widest gap between classes). skip_below: highest 0.01 grid value with zero tuning animals scoring below it (miss budget 0; lowest animal score 0.376). small_above: midpoint of the gap between the highest-scoring empty frame Decider called clear (0.347) and the lowest-scoring clear animal frame above it (0.888). escalate_above: midpoint of the gap between the highest non-person/vehicle frame (0.332) and the lowest person/vehicle frame (0.741), labels audited by eye where CCT marks people as empty.",
+    "method": "Tuning set only (80 frames, 80 bursts, every burst frame asked with the production call). Policy: escalate if P(person/vehicle) >= escalate_above in any frame of the burst; skip only if max P(animal) over the burst < skip_below; small (Nova Lite) if the frame's P(animal) >= small_above; otherwise large (Nova Pro, Decider unsure). Difficulty is still asked but not used. skip_below: highest 0.01 step at which no tuning animal burst has max P(animal) below it (lowest animal-burst max 0.417; the per-frame rule gives 0.37). small_above: lowest 0.01 step from which tuning frames at or above every higher step are at least 95% animal (the midpoint-of-gap rule would give 0.77). escalate_above: unchanged from v1.",
     "n_tune": 80,
-    "n_tune_animal": 43,
-    "n_tune_empty": 32,
-    "n_tune_person_or_vehicle": 5
+    "n_tune_bursts": 80,
+    "n_tune_burst_frames": 137,
+    "n_tune_animal_bursts": 43,
+    "n_tune_empty_bursts": 32,
+    "tune_empty_bursts_skipped": 17,
+    "v1": {
+      "skip_below": 0.37,
+      "small_above": 0.62,
+      "escalate_above": 0.54,
+      "chosen_wording": "p_criteria",
+      "chosen_escalate_wording": "e_criteria",
+      "method": "Tuning set only. Wording: highest AUC (escalation ties broken by the widest gap between classes). skip_below: highest 0.01 grid value with zero tuning animals scoring below it (miss budget 0; lowest animal score 0.376). small_above: midpoint of the gap between the highest-scoring empty frame Decider called clear (0.347) and the lowest-scoring clear animal frame above it (0.888). escalate_above: midpoint of the gap between the highest non-person/vehicle frame (0.332) and the lowest person/vehicle frame (0.741), labels audited by eye where CCT marks people as empty.",
+      "n_tune": 80,
+      "n_tune_animal": 43,
+      "n_tune_empty": 32,
+      "n_tune_person_or_vehicle": 5,
+      "use_difficulty": true
+    }
   },
   "questions": {
     "present": {
@@ -38,1059 +55,3664 @@
     }
   },
   "state": "A single frame from a wildlife camera trap.",
-  "heldout": {
-    "all": {
-      "n_frames": 600,
-      "n_empty": 310,
-      "n_animal": 271,
-      "n_vehicle": 19,
-      "empty_skipped": 130,
-      "empty_skipped_pct": 41.9,
-      "animals_missed": 16,
-      "animals_missed_pct": 5.9,
-      "frames_skipped": 146,
-      "frames_skipped_pct": 24.3,
-      "tiers": {
-        "skip": 146,
-        "small": 77,
-        "large": 356,
-        "escalate": 21
-      },
-      "animal_tiers": {
-        "skip": 16,
-        "small": 77,
-        "large": 178,
-        "escalate": 0
-      },
-      "empty_tiers": {
-        "skip": 130,
-        "small": 0,
-        "large": 177,
-        "escalate": 3
-      },
-      "vehicles_caught": 18,
-      "false_alerts": 3,
-      "false_alerts_on_empty": 3,
-      "presence_auc_animal_vs_empty": 0.8998,
-      "mean_present_animal": 0.828,
-      "mean_present_empty": 0.448,
-      "latency_ms_p50": 498.9,
-      "latency_ms_p90": 658.1
-    },
-    "day": {
-      "n_frames": 358,
-      "n_empty": 228,
-      "n_animal": 112,
-      "n_vehicle": 18,
-      "empty_skipped": 102,
-      "empty_skipped_pct": 44.7,
-      "animals_missed": 8,
-      "animals_missed_pct": 7.1,
-      "frames_skipped": 110,
-      "frames_skipped_pct": 30.7,
-      "tiers": {
-        "skip": 110,
-        "small": 47,
-        "large": 181,
-        "escalate": 20
-      },
-      "animal_tiers": {
-        "skip": 8,
-        "small": 47,
-        "large": 57,
-        "escalate": 0
-      },
-      "empty_tiers": {
-        "skip": 102,
-        "small": 0,
-        "large": 123,
-        "escalate": 3
-      },
-      "vehicles_caught": 17,
-      "false_alerts": 3,
-      "false_alerts_on_empty": 3,
-      "presence_auc_animal_vs_empty": 0.9025,
-      "mean_present_animal": 0.817,
-      "mean_present_empty": 0.426,
-      "latency_ms_p50": 502.0,
-      "latency_ms_p90": 652.6
-    },
-    "night_ir": {
-      "n_frames": 242,
-      "n_empty": 82,
-      "n_animal": 159,
-      "n_vehicle": 1,
-      "empty_skipped": 28,
-      "empty_skipped_pct": 34.1,
-      "animals_missed": 8,
-      "animals_missed_pct": 5.0,
-      "frames_skipped": 36,
-      "frames_skipped_pct": 14.9,
-      "tiers": {
-        "skip": 36,
-        "small": 30,
-        "large": 175,
-        "escalate": 1
-      },
-      "animal_tiers": {
-        "skip": 8,
-        "small": 30,
-        "large": 121,
-        "escalate": 0
-      },
-      "empty_tiers": {
-        "skip": 28,
-        "small": 0,
-        "large": 54,
-        "escalate": 0
-      },
-      "vehicles_caught": 1,
-      "false_alerts": 0,
-      "false_alerts_on_empty": 0,
-      "presence_auc_animal_vs_empty": 0.8798,
-      "mean_present_animal": 0.837,
-      "mean_present_empty": 0.509,
-      "latency_ms_p50": 497.2,
-      "latency_ms_p90": 665.0
+  "bursts": {
+    "n_sequences": 599,
+    "n_burst_frames": 1079,
+    "n_anchor_frames": 600,
+    "burst_sizes": {
+      "3": 236,
+      "1": 357,
+      "5": 7
     }
   },
-  "vehicle_set": {
-    "n_frames": 40,
-    "n_empty": 0,
-    "n_animal": 0,
-    "n_vehicle": 40,
-    "empty_skipped": 0,
-    "empty_skipped_pct": null,
-    "animals_missed": 0,
-    "animals_missed_pct": null,
-    "frames_skipped": 0,
-    "frames_skipped_pct": 0.0,
-    "tiers": {
-      "skip": 0,
-      "small": 0,
-      "large": 1,
-      "escalate": 39
+  "policies": {
+    "v1": {
+      "description": "v1: difficulty-gated tiers, per frame (as committed)",
+      "thresholds": {
+        "skip_below": 0.37,
+        "small_above": 0.62,
+        "escalate_above": 0.54,
+        "use_difficulty": true,
+        "burst_aware": false
+      },
+      "heldout": {
+        "all": {
+          "n_frames": 600,
+          "n_empty": 310,
+          "n_animal": 271,
+          "n_vehicle": 19,
+          "empty_skipped": 130,
+          "empty_skipped_pct": 41.9,
+          "animals_missed": 16,
+          "animals_missed_pct": 5.9,
+          "frames_skipped": 146,
+          "frames_skipped_pct": 24.3,
+          "tiers": {
+            "skip": 146,
+            "small": 77,
+            "large": 356,
+            "escalate": 21
+          },
+          "animal_tiers": {
+            "skip": 16,
+            "small": 77,
+            "large": 178,
+            "escalate": 0
+          },
+          "empty_tiers": {
+            "skip": 130,
+            "small": 0,
+            "large": 177,
+            "escalate": 3
+          },
+          "vehicles_caught": 18,
+          "false_alerts": 3,
+          "false_alerts_on_empty": 3,
+          "presence_auc_animal_vs_empty": 0.8998,
+          "latency_ms_p50": 498.9,
+          "latency_ms_p90": 658.1
+        },
+        "day": {
+          "n_frames": 358,
+          "n_empty": 228,
+          "n_animal": 112,
+          "n_vehicle": 18,
+          "empty_skipped": 102,
+          "empty_skipped_pct": 44.7,
+          "animals_missed": 8,
+          "animals_missed_pct": 7.1,
+          "frames_skipped": 110,
+          "frames_skipped_pct": 30.7,
+          "tiers": {
+            "skip": 110,
+            "small": 47,
+            "large": 181,
+            "escalate": 20
+          },
+          "animal_tiers": {
+            "skip": 8,
+            "small": 47,
+            "large": 57,
+            "escalate": 0
+          },
+          "empty_tiers": {
+            "skip": 102,
+            "small": 0,
+            "large": 123,
+            "escalate": 3
+          },
+          "vehicles_caught": 17,
+          "false_alerts": 3,
+          "false_alerts_on_empty": 3,
+          "presence_auc_animal_vs_empty": 0.9025,
+          "latency_ms_p50": 502.0,
+          "latency_ms_p90": 652.6
+        },
+        "night_ir": {
+          "n_frames": 242,
+          "n_empty": 82,
+          "n_animal": 159,
+          "n_vehicle": 1,
+          "empty_skipped": 28,
+          "empty_skipped_pct": 34.1,
+          "animals_missed": 8,
+          "animals_missed_pct": 5.0,
+          "frames_skipped": 36,
+          "frames_skipped_pct": 14.9,
+          "tiers": {
+            "skip": 36,
+            "small": 30,
+            "large": 175,
+            "escalate": 1
+          },
+          "animal_tiers": {
+            "skip": 8,
+            "small": 30,
+            "large": 121,
+            "escalate": 0
+          },
+          "empty_tiers": {
+            "skip": 28,
+            "small": 0,
+            "large": 54,
+            "escalate": 0
+          },
+          "vehicles_caught": 1,
+          "false_alerts": 0,
+          "false_alerts_on_empty": 0,
+          "presence_auc_animal_vs_empty": 0.8798,
+          "latency_ms_p50": 497.2,
+          "latency_ms_p90": 665.0
+        }
+      },
+      "vehicle_set": {
+        "n_frames": 40,
+        "n_empty": 0,
+        "n_animal": 0,
+        "n_vehicle": 40,
+        "empty_skipped": 0,
+        "empty_skipped_pct": null,
+        "animals_missed": 0,
+        "animals_missed_pct": null,
+        "frames_skipped": 0,
+        "frames_skipped_pct": 0.0,
+        "tiers": {
+          "skip": 0,
+          "small": 0,
+          "large": 1,
+          "escalate": 39
+        },
+        "animal_tiers": {
+          "skip": 0,
+          "small": 0,
+          "large": 0,
+          "escalate": 0
+        },
+        "empty_tiers": {
+          "skip": 0,
+          "small": 0,
+          "large": 0,
+          "escalate": 0
+        },
+        "vehicles_caught": 39,
+        "false_alerts": 0,
+        "false_alerts_on_empty": 0,
+        "presence_auc_animal_vs_empty": null,
+        "latency_ms_p50": 458.1,
+        "latency_ms_p90": 476.3
+      },
+      "vehicles": {
+        "caught": 57,
+        "n": 59,
+        "caught_pct": 96.6
+      },
+      "sequences": {
+        "all": {
+          "n_sequences": 599,
+          "n_frames": 1079,
+          "frames_skipped": 194,
+          "n_empty": 310,
+          "empty_skipped": 128,
+          "empty_skipped_pct": 41.3,
+          "n_animal": 270,
+          "animals_missed": 7,
+          "animals_missed_pct": 2.6,
+          "animal_partly_skipped": 20,
+          "n_vehicle": 19,
+          "vehicles_caught": 18
+        },
+        "day": {
+          "n_sequences": 357,
+          "n_frames": 558,
+          "frames_skipped": 137,
+          "n_empty": 228,
+          "empty_skipped": 101,
+          "empty_skipped_pct": 44.3,
+          "n_animal": 111,
+          "animals_missed": 4,
+          "animals_missed_pct": 3.6,
+          "animal_partly_skipped": 7,
+          "n_vehicle": 18,
+          "vehicles_caught": 17
+        },
+        "night_ir": {
+          "n_sequences": 242,
+          "n_frames": 521,
+          "frames_skipped": 57,
+          "n_empty": 82,
+          "empty_skipped": 27,
+          "empty_skipped_pct": 32.9,
+          "n_animal": 159,
+          "animals_missed": 3,
+          "animals_missed_pct": 1.9,
+          "animal_partly_skipped": 13,
+          "n_vehicle": 1,
+          "vehicles_caught": 1
+        }
+      },
+      "sweep": [
+        {
+          "skip_below": 0.0,
+          "frames_skipped": 0,
+          "frames_skipped_pct": 0.0,
+          "empty_skipped": 0,
+          "animals_missed": 0,
+          "animals_missed_pct": 0.0
+        },
+        {
+          "skip_below": 0.01,
+          "frames_skipped": 0,
+          "frames_skipped_pct": 0.0,
+          "empty_skipped": 0,
+          "animals_missed": 0,
+          "animals_missed_pct": 0.0
+        },
+        {
+          "skip_below": 0.02,
+          "frames_skipped": 0,
+          "frames_skipped_pct": 0.0,
+          "empty_skipped": 0,
+          "animals_missed": 0,
+          "animals_missed_pct": 0.0
+        },
+        {
+          "skip_below": 0.03,
+          "frames_skipped": 0,
+          "frames_skipped_pct": 0.0,
+          "empty_skipped": 0,
+          "animals_missed": 0,
+          "animals_missed_pct": 0.0
+        },
+        {
+          "skip_below": 0.04,
+          "frames_skipped": 0,
+          "frames_skipped_pct": 0.0,
+          "empty_skipped": 0,
+          "animals_missed": 0,
+          "animals_missed_pct": 0.0
+        },
+        {
+          "skip_below": 0.05,
+          "frames_skipped": 0,
+          "frames_skipped_pct": 0.0,
+          "empty_skipped": 0,
+          "animals_missed": 0,
+          "animals_missed_pct": 0.0
+        },
+        {
+          "skip_below": 0.06,
+          "frames_skipped": 0,
+          "frames_skipped_pct": 0.0,
+          "empty_skipped": 0,
+          "animals_missed": 0,
+          "animals_missed_pct": 0.0
+        },
+        {
+          "skip_below": 0.07,
+          "frames_skipped": 0,
+          "frames_skipped_pct": 0.0,
+          "empty_skipped": 0,
+          "animals_missed": 0,
+          "animals_missed_pct": 0.0
+        },
+        {
+          "skip_below": 0.08,
+          "frames_skipped": 0,
+          "frames_skipped_pct": 0.0,
+          "empty_skipped": 0,
+          "animals_missed": 0,
+          "animals_missed_pct": 0.0
+        },
+        {
+          "skip_below": 0.09,
+          "frames_skipped": 0,
+          "frames_skipped_pct": 0.0,
+          "empty_skipped": 0,
+          "animals_missed": 0,
+          "animals_missed_pct": 0.0
+        },
+        {
+          "skip_below": 0.1,
+          "frames_skipped": 0,
+          "frames_skipped_pct": 0.0,
+          "empty_skipped": 0,
+          "animals_missed": 0,
+          "animals_missed_pct": 0.0
+        },
+        {
+          "skip_below": 0.11,
+          "frames_skipped": 0,
+          "frames_skipped_pct": 0.0,
+          "empty_skipped": 0,
+          "animals_missed": 0,
+          "animals_missed_pct": 0.0
+        },
+        {
+          "skip_below": 0.12,
+          "frames_skipped": 0,
+          "frames_skipped_pct": 0.0,
+          "empty_skipped": 0,
+          "animals_missed": 0,
+          "animals_missed_pct": 0.0
+        },
+        {
+          "skip_below": 0.13,
+          "frames_skipped": 0,
+          "frames_skipped_pct": 0.0,
+          "empty_skipped": 0,
+          "animals_missed": 0,
+          "animals_missed_pct": 0.0
+        },
+        {
+          "skip_below": 0.14,
+          "frames_skipped": 0,
+          "frames_skipped_pct": 0.0,
+          "empty_skipped": 0,
+          "animals_missed": 0,
+          "animals_missed_pct": 0.0
+        },
+        {
+          "skip_below": 0.15,
+          "frames_skipped": 1,
+          "frames_skipped_pct": 0.2,
+          "empty_skipped": 1,
+          "animals_missed": 0,
+          "animals_missed_pct": 0.0
+        },
+        {
+          "skip_below": 0.16,
+          "frames_skipped": 5,
+          "frames_skipped_pct": 0.8,
+          "empty_skipped": 5,
+          "animals_missed": 0,
+          "animals_missed_pct": 0.0
+        },
+        {
+          "skip_below": 0.17,
+          "frames_skipped": 9,
+          "frames_skipped_pct": 1.5,
+          "empty_skipped": 9,
+          "animals_missed": 0,
+          "animals_missed_pct": 0.0
+        },
+        {
+          "skip_below": 0.18,
+          "frames_skipped": 11,
+          "frames_skipped_pct": 1.8,
+          "empty_skipped": 11,
+          "animals_missed": 0,
+          "animals_missed_pct": 0.0
+        },
+        {
+          "skip_below": 0.19,
+          "frames_skipped": 13,
+          "frames_skipped_pct": 2.2,
+          "empty_skipped": 13,
+          "animals_missed": 0,
+          "animals_missed_pct": 0.0
+        },
+        {
+          "skip_below": 0.2,
+          "frames_skipped": 16,
+          "frames_skipped_pct": 2.7,
+          "empty_skipped": 16,
+          "animals_missed": 0,
+          "animals_missed_pct": 0.0
+        },
+        {
+          "skip_below": 0.21,
+          "frames_skipped": 25,
+          "frames_skipped_pct": 4.2,
+          "empty_skipped": 24,
+          "animals_missed": 1,
+          "animals_missed_pct": 0.4
+        },
+        {
+          "skip_below": 0.22,
+          "frames_skipped": 28,
+          "frames_skipped_pct": 4.7,
+          "empty_skipped": 26,
+          "animals_missed": 2,
+          "animals_missed_pct": 0.7
+        },
+        {
+          "skip_below": 0.23,
+          "frames_skipped": 36,
+          "frames_skipped_pct": 6.0,
+          "empty_skipped": 34,
+          "animals_missed": 2,
+          "animals_missed_pct": 0.7
+        },
+        {
+          "skip_below": 0.24,
+          "frames_skipped": 44,
+          "frames_skipped_pct": 7.3,
+          "empty_skipped": 41,
+          "animals_missed": 3,
+          "animals_missed_pct": 1.1
+        },
+        {
+          "skip_below": 0.25,
+          "frames_skipped": 46,
+          "frames_skipped_pct": 7.7,
+          "empty_skipped": 42,
+          "animals_missed": 4,
+          "animals_missed_pct": 1.5
+        },
+        {
+          "skip_below": 0.26,
+          "frames_skipped": 58,
+          "frames_skipped_pct": 9.7,
+          "empty_skipped": 54,
+          "animals_missed": 4,
+          "animals_missed_pct": 1.5
+        },
+        {
+          "skip_below": 0.27,
+          "frames_skipped": 65,
+          "frames_skipped_pct": 10.8,
+          "empty_skipped": 61,
+          "animals_missed": 4,
+          "animals_missed_pct": 1.5
+        },
+        {
+          "skip_below": 0.28,
+          "frames_skipped": 75,
+          "frames_skipped_pct": 12.5,
+          "empty_skipped": 68,
+          "animals_missed": 7,
+          "animals_missed_pct": 2.6
+        },
+        {
+          "skip_below": 0.29,
+          "frames_skipped": 84,
+          "frames_skipped_pct": 14.0,
+          "empty_skipped": 77,
+          "animals_missed": 7,
+          "animals_missed_pct": 2.6
+        },
+        {
+          "skip_below": 0.3,
+          "frames_skipped": 89,
+          "frames_skipped_pct": 14.8,
+          "empty_skipped": 82,
+          "animals_missed": 7,
+          "animals_missed_pct": 2.6
+        },
+        {
+          "skip_below": 0.31,
+          "frames_skipped": 100,
+          "frames_skipped_pct": 16.7,
+          "empty_skipped": 91,
+          "animals_missed": 9,
+          "animals_missed_pct": 3.3
+        },
+        {
+          "skip_below": 0.32,
+          "frames_skipped": 111,
+          "frames_skipped_pct": 18.5,
+          "empty_skipped": 101,
+          "animals_missed": 10,
+          "animals_missed_pct": 3.7
+        },
+        {
+          "skip_below": 0.33,
+          "frames_skipped": 116,
+          "frames_skipped_pct": 19.3,
+          "empty_skipped": 104,
+          "animals_missed": 12,
+          "animals_missed_pct": 4.4
+        },
+        {
+          "skip_below": 0.34,
+          "frames_skipped": 122,
+          "frames_skipped_pct": 20.3,
+          "empty_skipped": 109,
+          "animals_missed": 13,
+          "animals_missed_pct": 4.8
+        },
+        {
+          "skip_below": 0.35,
+          "frames_skipped": 126,
+          "frames_skipped_pct": 21.0,
+          "empty_skipped": 113,
+          "animals_missed": 13,
+          "animals_missed_pct": 4.8
+        },
+        {
+          "skip_below": 0.36,
+          "frames_skipped": 137,
+          "frames_skipped_pct": 22.8,
+          "empty_skipped": 121,
+          "animals_missed": 16,
+          "animals_missed_pct": 5.9
+        },
+        {
+          "skip_below": 0.37,
+          "frames_skipped": 146,
+          "frames_skipped_pct": 24.3,
+          "empty_skipped": 130,
+          "animals_missed": 16,
+          "animals_missed_pct": 5.9
+        },
+        {
+          "skip_below": 0.38,
+          "frames_skipped": 151,
+          "frames_skipped_pct": 25.2,
+          "empty_skipped": 134,
+          "animals_missed": 17,
+          "animals_missed_pct": 6.3
+        },
+        {
+          "skip_below": 0.39,
+          "frames_skipped": 162,
+          "frames_skipped_pct": 27.0,
+          "empty_skipped": 143,
+          "animals_missed": 19,
+          "animals_missed_pct": 7.0
+        },
+        {
+          "skip_below": 0.4,
+          "frames_skipped": 169,
+          "frames_skipped_pct": 28.2,
+          "empty_skipped": 147,
+          "animals_missed": 22,
+          "animals_missed_pct": 8.1
+        },
+        {
+          "skip_below": 0.41,
+          "frames_skipped": 175,
+          "frames_skipped_pct": 29.2,
+          "empty_skipped": 152,
+          "animals_missed": 23,
+          "animals_missed_pct": 8.5
+        },
+        {
+          "skip_below": 0.42,
+          "frames_skipped": 185,
+          "frames_skipped_pct": 30.8,
+          "empty_skipped": 159,
+          "animals_missed": 26,
+          "animals_missed_pct": 9.6
+        },
+        {
+          "skip_below": 0.43,
+          "frames_skipped": 193,
+          "frames_skipped_pct": 32.2,
+          "empty_skipped": 166,
+          "animals_missed": 27,
+          "animals_missed_pct": 10.0
+        },
+        {
+          "skip_below": 0.44,
+          "frames_skipped": 197,
+          "frames_skipped_pct": 32.8,
+          "empty_skipped": 168,
+          "animals_missed": 29,
+          "animals_missed_pct": 10.7
+        },
+        {
+          "skip_below": 0.45,
+          "frames_skipped": 203,
+          "frames_skipped_pct": 33.8,
+          "empty_skipped": 173,
+          "animals_missed": 30,
+          "animals_missed_pct": 11.1
+        },
+        {
+          "skip_below": 0.46,
+          "frames_skipped": 211,
+          "frames_skipped_pct": 35.2,
+          "empty_skipped": 180,
+          "animals_missed": 31,
+          "animals_missed_pct": 11.4
+        },
+        {
+          "skip_below": 0.47,
+          "frames_skipped": 216,
+          "frames_skipped_pct": 36.0,
+          "empty_skipped": 184,
+          "animals_missed": 32,
+          "animals_missed_pct": 11.8
+        },
+        {
+          "skip_below": 0.48,
+          "frames_skipped": 221,
+          "frames_skipped_pct": 36.8,
+          "empty_skipped": 188,
+          "animals_missed": 33,
+          "animals_missed_pct": 12.2
+        },
+        {
+          "skip_below": 0.49,
+          "frames_skipped": 226,
+          "frames_skipped_pct": 37.7,
+          "empty_skipped": 192,
+          "animals_missed": 34,
+          "animals_missed_pct": 12.5
+        },
+        {
+          "skip_below": 0.5,
+          "frames_skipped": 235,
+          "frames_skipped_pct": 39.2,
+          "empty_skipped": 199,
+          "animals_missed": 36,
+          "animals_missed_pct": 13.3
+        },
+        {
+          "skip_below": 0.51,
+          "frames_skipped": 237,
+          "frames_skipped_pct": 39.5,
+          "empty_skipped": 201,
+          "animals_missed": 36,
+          "animals_missed_pct": 13.3
+        },
+        {
+          "skip_below": 0.52,
+          "frames_skipped": 244,
+          "frames_skipped_pct": 40.7,
+          "empty_skipped": 207,
+          "animals_missed": 37,
+          "animals_missed_pct": 13.7
+        },
+        {
+          "skip_below": 0.53,
+          "frames_skipped": 250,
+          "frames_skipped_pct": 41.7,
+          "empty_skipped": 211,
+          "animals_missed": 39,
+          "animals_missed_pct": 14.4
+        },
+        {
+          "skip_below": 0.54,
+          "frames_skipped": 261,
+          "frames_skipped_pct": 43.5,
+          "empty_skipped": 222,
+          "animals_missed": 39,
+          "animals_missed_pct": 14.4
+        },
+        {
+          "skip_below": 0.55,
+          "frames_skipped": 268,
+          "frames_skipped_pct": 44.7,
+          "empty_skipped": 228,
+          "animals_missed": 40,
+          "animals_missed_pct": 14.8
+        },
+        {
+          "skip_below": 0.56,
+          "frames_skipped": 270,
+          "frames_skipped_pct": 45.0,
+          "empty_skipped": 229,
+          "animals_missed": 41,
+          "animals_missed_pct": 15.1
+        },
+        {
+          "skip_below": 0.57,
+          "frames_skipped": 270,
+          "frames_skipped_pct": 45.0,
+          "empty_skipped": 229,
+          "animals_missed": 41,
+          "animals_missed_pct": 15.1
+        },
+        {
+          "skip_below": 0.58,
+          "frames_skipped": 272,
+          "frames_skipped_pct": 45.3,
+          "empty_skipped": 230,
+          "animals_missed": 42,
+          "animals_missed_pct": 15.5
+        },
+        {
+          "skip_below": 0.59,
+          "frames_skipped": 278,
+          "frames_skipped_pct": 46.3,
+          "empty_skipped": 236,
+          "animals_missed": 42,
+          "animals_missed_pct": 15.5
+        },
+        {
+          "skip_below": 0.6,
+          "frames_skipped": 281,
+          "frames_skipped_pct": 46.8,
+          "empty_skipped": 239,
+          "animals_missed": 42,
+          "animals_missed_pct": 15.5
+        },
+        {
+          "skip_below": 0.61,
+          "frames_skipped": 288,
+          "frames_skipped_pct": 48.0,
+          "empty_skipped": 246,
+          "animals_missed": 42,
+          "animals_missed_pct": 15.5
+        },
+        {
+          "skip_below": 0.62,
+          "frames_skipped": 290,
+          "frames_skipped_pct": 48.3,
+          "empty_skipped": 248,
+          "animals_missed": 42,
+          "animals_missed_pct": 15.5
+        },
+        {
+          "skip_below": 0.63,
+          "frames_skipped": 293,
+          "frames_skipped_pct": 48.8,
+          "empty_skipped": 250,
+          "animals_missed": 43,
+          "animals_missed_pct": 15.9
+        },
+        {
+          "skip_below": 0.64,
+          "frames_skipped": 296,
+          "frames_skipped_pct": 49.3,
+          "empty_skipped": 253,
+          "animals_missed": 43,
+          "animals_missed_pct": 15.9
+        },
+        {
+          "skip_below": 0.65,
+          "frames_skipped": 301,
+          "frames_skipped_pct": 50.2,
+          "empty_skipped": 257,
+          "animals_missed": 44,
+          "animals_missed_pct": 16.2
+        },
+        {
+          "skip_below": 0.66,
+          "frames_skipped": 304,
+          "frames_skipped_pct": 50.7,
+          "empty_skipped": 259,
+          "animals_missed": 45,
+          "animals_missed_pct": 16.6
+        },
+        {
+          "skip_below": 0.67,
+          "frames_skipped": 307,
+          "frames_skipped_pct": 51.2,
+          "empty_skipped": 262,
+          "animals_missed": 45,
+          "animals_missed_pct": 16.6
+        },
+        {
+          "skip_below": 0.68,
+          "frames_skipped": 313,
+          "frames_skipped_pct": 52.2,
+          "empty_skipped": 268,
+          "animals_missed": 45,
+          "animals_missed_pct": 16.6
+        },
+        {
+          "skip_below": 0.69,
+          "frames_skipped": 313,
+          "frames_skipped_pct": 52.2,
+          "empty_skipped": 268,
+          "animals_missed": 45,
+          "animals_missed_pct": 16.6
+        },
+        {
+          "skip_below": 0.7,
+          "frames_skipped": 315,
+          "frames_skipped_pct": 52.5,
+          "empty_skipped": 269,
+          "animals_missed": 46,
+          "animals_missed_pct": 17.0
+        },
+        {
+          "skip_below": 0.71,
+          "frames_skipped": 319,
+          "frames_skipped_pct": 53.2,
+          "empty_skipped": 271,
+          "animals_missed": 48,
+          "animals_missed_pct": 17.7
+        },
+        {
+          "skip_below": 0.72,
+          "frames_skipped": 324,
+          "frames_skipped_pct": 54.0,
+          "empty_skipped": 272,
+          "animals_missed": 52,
+          "animals_missed_pct": 19.2
+        },
+        {
+          "skip_below": 0.73,
+          "frames_skipped": 325,
+          "frames_skipped_pct": 54.2,
+          "empty_skipped": 273,
+          "animals_missed": 52,
+          "animals_missed_pct": 19.2
+        },
+        {
+          "skip_below": 0.74,
+          "frames_skipped": 332,
+          "frames_skipped_pct": 55.3,
+          "empty_skipped": 276,
+          "animals_missed": 56,
+          "animals_missed_pct": 20.7
+        },
+        {
+          "skip_below": 0.75,
+          "frames_skipped": 339,
+          "frames_skipped_pct": 56.5,
+          "empty_skipped": 279,
+          "animals_missed": 60,
+          "animals_missed_pct": 22.1
+        },
+        {
+          "skip_below": 0.76,
+          "frames_skipped": 345,
+          "frames_skipped_pct": 57.5,
+          "empty_skipped": 282,
+          "animals_missed": 62,
+          "animals_missed_pct": 22.9
+        },
+        {
+          "skip_below": 0.77,
+          "frames_skipped": 352,
+          "frames_skipped_pct": 58.7,
+          "empty_skipped": 285,
+          "animals_missed": 66,
+          "animals_missed_pct": 24.4
+        },
+        {
+          "skip_below": 0.78,
+          "frames_skipped": 358,
+          "frames_skipped_pct": 59.7,
+          "empty_skipped": 287,
+          "animals_missed": 70,
+          "animals_missed_pct": 25.8
+        },
+        {
+          "skip_below": 0.79,
+          "frames_skipped": 363,
+          "frames_skipped_pct": 60.5,
+          "empty_skipped": 289,
+          "animals_missed": 73,
+          "animals_missed_pct": 26.9
+        },
+        {
+          "skip_below": 0.8,
+          "frames_skipped": 369,
+          "frames_skipped_pct": 61.5,
+          "empty_skipped": 291,
+          "animals_missed": 77,
+          "animals_missed_pct": 28.4
+        },
+        {
+          "skip_below": 0.81,
+          "frames_skipped": 370,
+          "frames_skipped_pct": 61.7,
+          "empty_skipped": 291,
+          "animals_missed": 78,
+          "animals_missed_pct": 28.8
+        },
+        {
+          "skip_below": 0.82,
+          "frames_skipped": 374,
+          "frames_skipped_pct": 62.3,
+          "empty_skipped": 293,
+          "animals_missed": 80,
+          "animals_missed_pct": 29.5
+        },
+        {
+          "skip_below": 0.83,
+          "frames_skipped": 374,
+          "frames_skipped_pct": 62.3,
+          "empty_skipped": 293,
+          "animals_missed": 80,
+          "animals_missed_pct": 29.5
+        },
+        {
+          "skip_below": 0.84,
+          "frames_skipped": 379,
+          "frames_skipped_pct": 63.2,
+          "empty_skipped": 295,
+          "animals_missed": 83,
+          "animals_missed_pct": 30.6
+        },
+        {
+          "skip_below": 0.85,
+          "frames_skipped": 381,
+          "frames_skipped_pct": 63.5,
+          "empty_skipped": 297,
+          "animals_missed": 83,
+          "animals_missed_pct": 30.6
+        },
+        {
+          "skip_below": 0.86,
+          "frames_skipped": 381,
+          "frames_skipped_pct": 63.5,
+          "empty_skipped": 297,
+          "animals_missed": 83,
+          "animals_missed_pct": 30.6
+        },
+        {
+          "skip_below": 0.87,
+          "frames_skipped": 390,
+          "frames_skipped_pct": 65.0,
+          "empty_skipped": 301,
+          "animals_missed": 88,
+          "animals_missed_pct": 32.5
+        },
+        {
+          "skip_below": 0.88,
+          "frames_skipped": 397,
+          "frames_skipped_pct": 66.2,
+          "empty_skipped": 303,
+          "animals_missed": 93,
+          "animals_missed_pct": 34.3
+        },
+        {
+          "skip_below": 0.89,
+          "frames_skipped": 400,
+          "frames_skipped_pct": 66.7,
+          "empty_skipped": 304,
+          "animals_missed": 95,
+          "animals_missed_pct": 35.1
+        },
+        {
+          "skip_below": 0.9,
+          "frames_skipped": 407,
+          "frames_skipped_pct": 67.8,
+          "empty_skipped": 306,
+          "animals_missed": 100,
+          "animals_missed_pct": 36.9
+        },
+        {
+          "skip_below": 0.91,
+          "frames_skipped": 412,
+          "frames_skipped_pct": 68.7,
+          "empty_skipped": 306,
+          "animals_missed": 105,
+          "animals_missed_pct": 38.7
+        },
+        {
+          "skip_below": 0.92,
+          "frames_skipped": 420,
+          "frames_skipped_pct": 70.0,
+          "empty_skipped": 307,
+          "animals_missed": 112,
+          "animals_missed_pct": 41.3
+        },
+        {
+          "skip_below": 0.93,
+          "frames_skipped": 431,
+          "frames_skipped_pct": 71.8,
+          "empty_skipped": 307,
+          "animals_missed": 123,
+          "animals_missed_pct": 45.4
+        },
+        {
+          "skip_below": 0.94,
+          "frames_skipped": 450,
+          "frames_skipped_pct": 75.0,
+          "empty_skipped": 307,
+          "animals_missed": 142,
+          "animals_missed_pct": 52.4
+        },
+        {
+          "skip_below": 0.95,
+          "frames_skipped": 487,
+          "frames_skipped_pct": 81.2,
+          "empty_skipped": 307,
+          "animals_missed": 179,
+          "animals_missed_pct": 66.1
+        },
+        {
+          "skip_below": 0.96,
+          "frames_skipped": 547,
+          "frames_skipped_pct": 91.2,
+          "empty_skipped": 307,
+          "animals_missed": 239,
+          "animals_missed_pct": 88.2
+        },
+        {
+          "skip_below": 0.97,
+          "frames_skipped": 572,
+          "frames_skipped_pct": 95.3,
+          "empty_skipped": 307,
+          "animals_missed": 264,
+          "animals_missed_pct": 97.4
+        },
+        {
+          "skip_below": 0.98,
+          "frames_skipped": 579,
+          "frames_skipped_pct": 96.5,
+          "empty_skipped": 307,
+          "animals_missed": 271,
+          "animals_missed_pct": 100.0
+        },
+        {
+          "skip_below": 0.99,
+          "frames_skipped": 579,
+          "frames_skipped_pct": 96.5,
+          "empty_skipped": 307,
+          "animals_missed": 271,
+          "animals_missed_pct": 100.0
+        },
+        {
+          "skip_below": 1.0,
+          "frames_skipped": 579,
+          "frames_skipped_pct": 96.5,
+          "empty_skipped": 307,
+          "animals_missed": 271,
+          "animals_missed_pct": 100.0
+        }
+      ],
+      "audit": {
+        "scope": "only frames a policy got wrong by CCT labels were checked by eye; the rest of the set was not audited",
+        "false_alerts_checked": 3,
+        "false_alerts_with_person": 3,
+        "false_alerts_not_checked": 0,
+        "false_alert_notes": [],
+        "missed_animals_visible": {
+          "no": 6,
+          "faint": 9,
+          "yes": 1
+        },
+        "missed_animals_later_burst_frame": 13,
+        "missed_vehicles": [
+          {
+            "file_name": "59136522-23d2-11e8-a6a3-ec086b02610b.jpg",
+            "escalate": 0.1067,
+            "note": "dark dawn frame; no vehicle visible to the eye"
+          },
+          {
+            "file_name": "59e103e7-23d2-11e8-a6a3-ec086b02610b.jpg",
+            "escalate": 0.4545,
+            "note": "motion-blurred dark shape under the bridge deck"
+          }
+        ]
+      },
+      "missed": [
+        {
+          "file_name": "58bd1d22-23d2-11e8-a6a3-ec086b02610b.jpg",
+          "label": "squirrel",
+          "lighting": "day",
+          "location": "78",
+          "present": 0.3233,
+          "frame_num": "2",
+          "seq_num_frames": "3",
+          "burst_max_present": 0.6014
+        },
+        {
+          "file_name": "597387f9-23d2-11e8-a6a3-ec086b02610b.jpg",
+          "label": "fox",
+          "lighting": "night_ir",
+          "location": "55",
+          "present": 0.2716,
+          "frame_num": "2",
+          "seq_num_frames": "3",
+          "burst_max_present": 0.9281
+        },
+        {
+          "file_name": "58678c61-23d2-11e8-a6a3-ec086b02610b.jpg",
+          "label": "coyote",
+          "lighting": "day",
+          "location": "107",
+          "present": 0.213,
+          "frame_num": "2",
+          "seq_num_frames": "3",
+          "burst_max_present": 0.2561
+        },
+        {
+          "file_name": "59260d4b-23d2-11e8-a6a3-ec086b02610b.jpg",
+          "label": "bird",
+          "lighting": "day",
+          "location": "87",
+          "present": 0.239,
+          "frame_num": "3",
+          "seq_num_frames": "3",
+          "burst_max_present": 0.2979
+        },
+        {
+          "file_name": "59af95eb-23d2-11e8-a6a3-ec086b02610b.jpg",
+          "label": "bird",
+          "lighting": "day",
+          "location": "3",
+          "present": 0.3035,
+          "frame_num": "3",
+          "seq_num_frames": "3",
+          "burst_max_present": 0.3532
+        },
+        {
+          "file_name": "587d429b-23d2-11e8-a6a3-ec086b02610b.jpg",
+          "label": "squirrel",
+          "lighting": "night_ir",
+          "location": "78",
+          "present": 0.3367,
+          "frame_num": "3",
+          "seq_num_frames": "3",
+          "burst_max_present": 0.8711
+        },
+        {
+          "file_name": "58d92faa-23d2-11e8-a6a3-ec086b02610b.jpg",
+          "label": "bobcat",
+          "lighting": "day",
+          "location": "95",
+          "present": 0.3562,
+          "frame_num": "3",
+          "seq_num_frames": "3",
+          "burst_max_present": 0.8164
+        },
+        {
+          "file_name": "58732f4c-23d2-11e8-a6a3-ec086b02610b.jpg",
+          "label": "deer",
+          "lighting": "night_ir",
+          "location": "117",
+          "present": 0.2797,
+          "frame_num": "2",
+          "seq_num_frames": "3",
+          "burst_max_present": 0.6056
+        },
+        {
+          "file_name": "58c66358-23d2-11e8-a6a3-ec086b02610b.jpg",
+          "label": "rabbit",
+          "lighting": "day",
+          "location": "115",
+          "present": 0.2437,
+          "frame_num": "3",
+          "seq_num_frames": "3",
+          "burst_max_present": 0.9221
+        },
+        {
+          "file_name": "59a179a8-23d2-11e8-a6a3-ec086b02610b.jpg",
+          "label": "rabbit",
+          "lighting": "night_ir",
+          "location": "61",
+          "present": 0.2021,
+          "frame_num": "3",
+          "seq_num_frames": "3",
+          "burst_max_present": 0.2327
+        },
+        {
+          "file_name": "58b2f0c0-23d2-11e8-a6a3-ec086b02610b.jpg",
+          "label": "cat",
+          "lighting": "night_ir",
+          "location": "78",
+          "present": 0.3541,
+          "frame_num": "1",
+          "seq_num_frames": "3",
+          "burst_max_present": 0.4573
+        },
+        {
+          "file_name": "5a1e5151-23d2-11e8-a6a3-ec086b02610b.jpg",
+          "label": "rabbit",
+          "lighting": "night_ir",
+          "location": "5",
+          "present": 0.3527,
+          "frame_num": "2",
+          "seq_num_frames": "3",
+          "burst_max_present": 0.3547
+        },
+        {
+          "file_name": "58cca688-23d2-11e8-a6a3-ec086b02610b.jpg",
+          "label": "bird",
+          "lighting": "day",
+          "location": "94",
+          "present": 0.3086,
+          "frame_num": "2",
+          "seq_num_frames": "3",
+          "burst_max_present": 0.3467
+        },
+        {
+          "file_name": "5a0e37f2-23d2-11e8-a6a3-ec086b02610b.jpg",
+          "label": "coyote",
+          "lighting": "day",
+          "location": "46",
+          "present": 0.3126,
+          "frame_num": "2",
+          "seq_num_frames": "3",
+          "burst_max_present": 0.9616
+        },
+        {
+          "file_name": "58ec557f-23d2-11e8-a6a3-ec086b02610b.jpg",
+          "label": "deer",
+          "lighting": "night_ir",
+          "location": "84",
+          "present": 0.2772,
+          "frame_num": "1",
+          "seq_num_frames": "3",
+          "burst_max_present": 0.4108
+        },
+        {
+          "file_name": "597fecee-23d2-11e8-a6a3-ec086b02610b.jpg",
+          "label": "coyote",
+          "lighting": "night_ir",
+          "location": "23",
+          "present": 0.3294,
+          "frame_num": "1",
+          "seq_num_frames": "1",
+          "burst_max_present": 0.3294
+        }
+      ],
+      "label_noise_candidates": [
+        {
+          "file_name": "58ce4099-23d2-11e8-a6a3-ec086b02610b.jpg",
+          "lighting": "day",
+          "present": 0.7607,
+          "escalate": 0.9318
+        },
+        {
+          "file_name": "59adfc5c-23d2-11e8-a6a3-ec086b02610b.jpg",
+          "lighting": "day",
+          "present": 0.7837,
+          "escalate": 0.918
+        },
+        {
+          "file_name": "596bd84d-23d2-11e8-a6a3-ec086b02610b.jpg",
+          "lighting": "day",
+          "present": 0.6286,
+          "escalate": 0.7139
+        }
+      ]
     },
-    "animal_tiers": {
-      "skip": 0,
-      "small": 0,
-      "large": 0,
-      "escalate": 0
+    "v2_frame": {
+      "description": "v2 band only: confidence band on P(animal), per frame (ablation, v2 thresholds)",
+      "thresholds": {
+        "skip_below": 0.41,
+        "small_above": 0.72,
+        "escalate_above": 0.54,
+        "use_difficulty": false,
+        "burst_aware": false
+      },
+      "heldout": {
+        "all": {
+          "n_frames": 600,
+          "n_empty": 310,
+          "n_animal": 271,
+          "n_vehicle": 19,
+          "empty_skipped": 152,
+          "empty_skipped_pct": 49.0,
+          "animals_missed": 23,
+          "animals_missed_pct": 8.5,
+          "frames_skipped": 175,
+          "frames_skipped_pct": 29.2,
+          "tiers": {
+            "skip": 175,
+            "small": 255,
+            "large": 149,
+            "escalate": 21
+          },
+          "animal_tiers": {
+            "skip": 23,
+            "small": 219,
+            "large": 29,
+            "escalate": 0
+          },
+          "empty_tiers": {
+            "skip": 152,
+            "small": 35,
+            "large": 120,
+            "escalate": 3
+          },
+          "vehicles_caught": 18,
+          "false_alerts": 3,
+          "false_alerts_on_empty": 3,
+          "presence_auc_animal_vs_empty": 0.8998,
+          "latency_ms_p50": 498.9,
+          "latency_ms_p90": 658.1
+        },
+        "day": {
+          "n_frames": 358,
+          "n_empty": 228,
+          "n_animal": 112,
+          "n_vehicle": 18,
+          "empty_skipped": 118,
+          "empty_skipped_pct": 51.8,
+          "animals_missed": 10,
+          "animals_missed_pct": 8.9,
+          "frames_skipped": 128,
+          "frames_skipped_pct": 35.8,
+          "tiers": {
+            "skip": 128,
+            "small": 110,
+            "large": 100,
+            "escalate": 20
+          },
+          "animal_tiers": {
+            "skip": 10,
+            "small": 90,
+            "large": 12,
+            "escalate": 0
+          },
+          "empty_tiers": {
+            "skip": 118,
+            "small": 19,
+            "large": 88,
+            "escalate": 3
+          },
+          "vehicles_caught": 17,
+          "false_alerts": 3,
+          "false_alerts_on_empty": 3,
+          "presence_auc_animal_vs_empty": 0.9025,
+          "latency_ms_p50": 502.0,
+          "latency_ms_p90": 652.6
+        },
+        "night_ir": {
+          "n_frames": 242,
+          "n_empty": 82,
+          "n_animal": 159,
+          "n_vehicle": 1,
+          "empty_skipped": 34,
+          "empty_skipped_pct": 41.5,
+          "animals_missed": 13,
+          "animals_missed_pct": 8.2,
+          "frames_skipped": 47,
+          "frames_skipped_pct": 19.4,
+          "tiers": {
+            "skip": 47,
+            "small": 145,
+            "large": 49,
+            "escalate": 1
+          },
+          "animal_tiers": {
+            "skip": 13,
+            "small": 129,
+            "large": 17,
+            "escalate": 0
+          },
+          "empty_tiers": {
+            "skip": 34,
+            "small": 16,
+            "large": 32,
+            "escalate": 0
+          },
+          "vehicles_caught": 1,
+          "false_alerts": 0,
+          "false_alerts_on_empty": 0,
+          "presence_auc_animal_vs_empty": 0.8798,
+          "latency_ms_p50": 497.2,
+          "latency_ms_p90": 665.0
+        }
+      },
+      "vehicle_set": {
+        "n_frames": 40,
+        "n_empty": 0,
+        "n_animal": 0,
+        "n_vehicle": 40,
+        "empty_skipped": 0,
+        "empty_skipped_pct": null,
+        "animals_missed": 0,
+        "animals_missed_pct": null,
+        "frames_skipped": 0,
+        "frames_skipped_pct": 0.0,
+        "tiers": {
+          "skip": 0,
+          "small": 0,
+          "large": 1,
+          "escalate": 39
+        },
+        "animal_tiers": {
+          "skip": 0,
+          "small": 0,
+          "large": 0,
+          "escalate": 0
+        },
+        "empty_tiers": {
+          "skip": 0,
+          "small": 0,
+          "large": 0,
+          "escalate": 0
+        },
+        "vehicles_caught": 39,
+        "false_alerts": 0,
+        "false_alerts_on_empty": 0,
+        "presence_auc_animal_vs_empty": null,
+        "latency_ms_p50": 458.1,
+        "latency_ms_p90": 476.3
+      },
+      "vehicles": {
+        "caught": 57,
+        "n": 59,
+        "caught_pct": 96.6
+      },
+      "sequences": {
+        "all": {
+          "n_sequences": 599,
+          "n_frames": 1079,
+          "frames_skipped": 233,
+          "n_empty": 310,
+          "empty_skipped": 150,
+          "empty_skipped_pct": 48.4,
+          "n_animal": 270,
+          "animals_missed": 9,
+          "animals_missed_pct": 3.3,
+          "animal_partly_skipped": 25,
+          "n_vehicle": 19,
+          "vehicles_caught": 18
+        },
+        "day": {
+          "n_sequences": 357,
+          "n_frames": 558,
+          "frames_skipped": 160,
+          "n_empty": 228,
+          "empty_skipped": 118,
+          "empty_skipped_pct": 51.8,
+          "n_animal": 111,
+          "animals_missed": 5,
+          "animals_missed_pct": 4.5,
+          "animal_partly_skipped": 9,
+          "n_vehicle": 18,
+          "vehicles_caught": 17
+        },
+        "night_ir": {
+          "n_sequences": 242,
+          "n_frames": 521,
+          "frames_skipped": 73,
+          "n_empty": 82,
+          "empty_skipped": 32,
+          "empty_skipped_pct": 39.0,
+          "n_animal": 159,
+          "animals_missed": 4,
+          "animals_missed_pct": 2.5,
+          "animal_partly_skipped": 16,
+          "n_vehicle": 1,
+          "vehicles_caught": 1
+        }
+      },
+      "sweep": [
+        {
+          "skip_below": 0.0,
+          "frames_skipped": 0,
+          "frames_skipped_pct": 0.0,
+          "empty_skipped": 0,
+          "animals_missed": 0,
+          "animals_missed_pct": 0.0
+        },
+        {
+          "skip_below": 0.01,
+          "frames_skipped": 0,
+          "frames_skipped_pct": 0.0,
+          "empty_skipped": 0,
+          "animals_missed": 0,
+          "animals_missed_pct": 0.0
+        },
+        {
+          "skip_below": 0.02,
+          "frames_skipped": 0,
+          "frames_skipped_pct": 0.0,
+          "empty_skipped": 0,
+          "animals_missed": 0,
+          "animals_missed_pct": 0.0
+        },
+        {
+          "skip_below": 0.03,
+          "frames_skipped": 0,
+          "frames_skipped_pct": 0.0,
+          "empty_skipped": 0,
+          "animals_missed": 0,
+          "animals_missed_pct": 0.0
+        },
+        {
+          "skip_below": 0.04,
+          "frames_skipped": 0,
+          "frames_skipped_pct": 0.0,
+          "empty_skipped": 0,
+          "animals_missed": 0,
+          "animals_missed_pct": 0.0
+        },
+        {
+          "skip_below": 0.05,
+          "frames_skipped": 0,
+          "frames_skipped_pct": 0.0,
+          "empty_skipped": 0,
+          "animals_missed": 0,
+          "animals_missed_pct": 0.0
+        },
+        {
+          "skip_below": 0.06,
+          "frames_skipped": 0,
+          "frames_skipped_pct": 0.0,
+          "empty_skipped": 0,
+          "animals_missed": 0,
+          "animals_missed_pct": 0.0
+        },
+        {
+          "skip_below": 0.07,
+          "frames_skipped": 0,
+          "frames_skipped_pct": 0.0,
+          "empty_skipped": 0,
+          "animals_missed": 0,
+          "animals_missed_pct": 0.0
+        },
+        {
+          "skip_below": 0.08,
+          "frames_skipped": 0,
+          "frames_skipped_pct": 0.0,
+          "empty_skipped": 0,
+          "animals_missed": 0,
+          "animals_missed_pct": 0.0
+        },
+        {
+          "skip_below": 0.09,
+          "frames_skipped": 0,
+          "frames_skipped_pct": 0.0,
+          "empty_skipped": 0,
+          "animals_missed": 0,
+          "animals_missed_pct": 0.0
+        },
+        {
+          "skip_below": 0.1,
+          "frames_skipped": 0,
+          "frames_skipped_pct": 0.0,
+          "empty_skipped": 0,
+          "animals_missed": 0,
+          "animals_missed_pct": 0.0
+        },
+        {
+          "skip_below": 0.11,
+          "frames_skipped": 0,
+          "frames_skipped_pct": 0.0,
+          "empty_skipped": 0,
+          "animals_missed": 0,
+          "animals_missed_pct": 0.0
+        },
+        {
+          "skip_below": 0.12,
+          "frames_skipped": 0,
+          "frames_skipped_pct": 0.0,
+          "empty_skipped": 0,
+          "animals_missed": 0,
+          "animals_missed_pct": 0.0
+        },
+        {
+          "skip_below": 0.13,
+          "frames_skipped": 0,
+          "frames_skipped_pct": 0.0,
+          "empty_skipped": 0,
+          "animals_missed": 0,
+          "animals_missed_pct": 0.0
+        },
+        {
+          "skip_below": 0.14,
+          "frames_skipped": 0,
+          "frames_skipped_pct": 0.0,
+          "empty_skipped": 0,
+          "animals_missed": 0,
+          "animals_missed_pct": 0.0
+        },
+        {
+          "skip_below": 0.15,
+          "frames_skipped": 1,
+          "frames_skipped_pct": 0.2,
+          "empty_skipped": 1,
+          "animals_missed": 0,
+          "animals_missed_pct": 0.0
+        },
+        {
+          "skip_below": 0.16,
+          "frames_skipped": 5,
+          "frames_skipped_pct": 0.8,
+          "empty_skipped": 5,
+          "animals_missed": 0,
+          "animals_missed_pct": 0.0
+        },
+        {
+          "skip_below": 0.17,
+          "frames_skipped": 9,
+          "frames_skipped_pct": 1.5,
+          "empty_skipped": 9,
+          "animals_missed": 0,
+          "animals_missed_pct": 0.0
+        },
+        {
+          "skip_below": 0.18,
+          "frames_skipped": 11,
+          "frames_skipped_pct": 1.8,
+          "empty_skipped": 11,
+          "animals_missed": 0,
+          "animals_missed_pct": 0.0
+        },
+        {
+          "skip_below": 0.19,
+          "frames_skipped": 13,
+          "frames_skipped_pct": 2.2,
+          "empty_skipped": 13,
+          "animals_missed": 0,
+          "animals_missed_pct": 0.0
+        },
+        {
+          "skip_below": 0.2,
+          "frames_skipped": 16,
+          "frames_skipped_pct": 2.7,
+          "empty_skipped": 16,
+          "animals_missed": 0,
+          "animals_missed_pct": 0.0
+        },
+        {
+          "skip_below": 0.21,
+          "frames_skipped": 25,
+          "frames_skipped_pct": 4.2,
+          "empty_skipped": 24,
+          "animals_missed": 1,
+          "animals_missed_pct": 0.4
+        },
+        {
+          "skip_below": 0.22,
+          "frames_skipped": 28,
+          "frames_skipped_pct": 4.7,
+          "empty_skipped": 26,
+          "animals_missed": 2,
+          "animals_missed_pct": 0.7
+        },
+        {
+          "skip_below": 0.23,
+          "frames_skipped": 36,
+          "frames_skipped_pct": 6.0,
+          "empty_skipped": 34,
+          "animals_missed": 2,
+          "animals_missed_pct": 0.7
+        },
+        {
+          "skip_below": 0.24,
+          "frames_skipped": 44,
+          "frames_skipped_pct": 7.3,
+          "empty_skipped": 41,
+          "animals_missed": 3,
+          "animals_missed_pct": 1.1
+        },
+        {
+          "skip_below": 0.25,
+          "frames_skipped": 46,
+          "frames_skipped_pct": 7.7,
+          "empty_skipped": 42,
+          "animals_missed": 4,
+          "animals_missed_pct": 1.5
+        },
+        {
+          "skip_below": 0.26,
+          "frames_skipped": 58,
+          "frames_skipped_pct": 9.7,
+          "empty_skipped": 54,
+          "animals_missed": 4,
+          "animals_missed_pct": 1.5
+        },
+        {
+          "skip_below": 0.27,
+          "frames_skipped": 65,
+          "frames_skipped_pct": 10.8,
+          "empty_skipped": 61,
+          "animals_missed": 4,
+          "animals_missed_pct": 1.5
+        },
+        {
+          "skip_below": 0.28,
+          "frames_skipped": 75,
+          "frames_skipped_pct": 12.5,
+          "empty_skipped": 68,
+          "animals_missed": 7,
+          "animals_missed_pct": 2.6
+        },
+        {
+          "skip_below": 0.29,
+          "frames_skipped": 84,
+          "frames_skipped_pct": 14.0,
+          "empty_skipped": 77,
+          "animals_missed": 7,
+          "animals_missed_pct": 2.6
+        },
+        {
+          "skip_below": 0.3,
+          "frames_skipped": 89,
+          "frames_skipped_pct": 14.8,
+          "empty_skipped": 82,
+          "animals_missed": 7,
+          "animals_missed_pct": 2.6
+        },
+        {
+          "skip_below": 0.31,
+          "frames_skipped": 100,
+          "frames_skipped_pct": 16.7,
+          "empty_skipped": 91,
+          "animals_missed": 9,
+          "animals_missed_pct": 3.3
+        },
+        {
+          "skip_below": 0.32,
+          "frames_skipped": 111,
+          "frames_skipped_pct": 18.5,
+          "empty_skipped": 101,
+          "animals_missed": 10,
+          "animals_missed_pct": 3.7
+        },
+        {
+          "skip_below": 0.33,
+          "frames_skipped": 116,
+          "frames_skipped_pct": 19.3,
+          "empty_skipped": 104,
+          "animals_missed": 12,
+          "animals_missed_pct": 4.4
+        },
+        {
+          "skip_below": 0.34,
+          "frames_skipped": 122,
+          "frames_skipped_pct": 20.3,
+          "empty_skipped": 109,
+          "animals_missed": 13,
+          "animals_missed_pct": 4.8
+        },
+        {
+          "skip_below": 0.35,
+          "frames_skipped": 126,
+          "frames_skipped_pct": 21.0,
+          "empty_skipped": 113,
+          "animals_missed": 13,
+          "animals_missed_pct": 4.8
+        },
+        {
+          "skip_below": 0.36,
+          "frames_skipped": 137,
+          "frames_skipped_pct": 22.8,
+          "empty_skipped": 121,
+          "animals_missed": 16,
+          "animals_missed_pct": 5.9
+        },
+        {
+          "skip_below": 0.37,
+          "frames_skipped": 146,
+          "frames_skipped_pct": 24.3,
+          "empty_skipped": 130,
+          "animals_missed": 16,
+          "animals_missed_pct": 5.9
+        },
+        {
+          "skip_below": 0.38,
+          "frames_skipped": 151,
+          "frames_skipped_pct": 25.2,
+          "empty_skipped": 134,
+          "animals_missed": 17,
+          "animals_missed_pct": 6.3
+        },
+        {
+          "skip_below": 0.39,
+          "frames_skipped": 162,
+          "frames_skipped_pct": 27.0,
+          "empty_skipped": 143,
+          "animals_missed": 19,
+          "animals_missed_pct": 7.0
+        },
+        {
+          "skip_below": 0.4,
+          "frames_skipped": 169,
+          "frames_skipped_pct": 28.2,
+          "empty_skipped": 147,
+          "animals_missed": 22,
+          "animals_missed_pct": 8.1
+        },
+        {
+          "skip_below": 0.41,
+          "frames_skipped": 175,
+          "frames_skipped_pct": 29.2,
+          "empty_skipped": 152,
+          "animals_missed": 23,
+          "animals_missed_pct": 8.5
+        },
+        {
+          "skip_below": 0.42,
+          "frames_skipped": 185,
+          "frames_skipped_pct": 30.8,
+          "empty_skipped": 159,
+          "animals_missed": 26,
+          "animals_missed_pct": 9.6
+        },
+        {
+          "skip_below": 0.43,
+          "frames_skipped": 193,
+          "frames_skipped_pct": 32.2,
+          "empty_skipped": 166,
+          "animals_missed": 27,
+          "animals_missed_pct": 10.0
+        },
+        {
+          "skip_below": 0.44,
+          "frames_skipped": 197,
+          "frames_skipped_pct": 32.8,
+          "empty_skipped": 168,
+          "animals_missed": 29,
+          "animals_missed_pct": 10.7
+        },
+        {
+          "skip_below": 0.45,
+          "frames_skipped": 203,
+          "frames_skipped_pct": 33.8,
+          "empty_skipped": 173,
+          "animals_missed": 30,
+          "animals_missed_pct": 11.1
+        },
+        {
+          "skip_below": 0.46,
+          "frames_skipped": 211,
+          "frames_skipped_pct": 35.2,
+          "empty_skipped": 180,
+          "animals_missed": 31,
+          "animals_missed_pct": 11.4
+        },
+        {
+          "skip_below": 0.47,
+          "frames_skipped": 216,
+          "frames_skipped_pct": 36.0,
+          "empty_skipped": 184,
+          "animals_missed": 32,
+          "animals_missed_pct": 11.8
+        },
+        {
+          "skip_below": 0.48,
+          "frames_skipped": 221,
+          "frames_skipped_pct": 36.8,
+          "empty_skipped": 188,
+          "animals_missed": 33,
+          "animals_missed_pct": 12.2
+        },
+        {
+          "skip_below": 0.49,
+          "frames_skipped": 226,
+          "frames_skipped_pct": 37.7,
+          "empty_skipped": 192,
+          "animals_missed": 34,
+          "animals_missed_pct": 12.5
+        },
+        {
+          "skip_below": 0.5,
+          "frames_skipped": 235,
+          "frames_skipped_pct": 39.2,
+          "empty_skipped": 199,
+          "animals_missed": 36,
+          "animals_missed_pct": 13.3
+        },
+        {
+          "skip_below": 0.51,
+          "frames_skipped": 237,
+          "frames_skipped_pct": 39.5,
+          "empty_skipped": 201,
+          "animals_missed": 36,
+          "animals_missed_pct": 13.3
+        },
+        {
+          "skip_below": 0.52,
+          "frames_skipped": 244,
+          "frames_skipped_pct": 40.7,
+          "empty_skipped": 207,
+          "animals_missed": 37,
+          "animals_missed_pct": 13.7
+        },
+        {
+          "skip_below": 0.53,
+          "frames_skipped": 250,
+          "frames_skipped_pct": 41.7,
+          "empty_skipped": 211,
+          "animals_missed": 39,
+          "animals_missed_pct": 14.4
+        },
+        {
+          "skip_below": 0.54,
+          "frames_skipped": 261,
+          "frames_skipped_pct": 43.5,
+          "empty_skipped": 222,
+          "animals_missed": 39,
+          "animals_missed_pct": 14.4
+        },
+        {
+          "skip_below": 0.55,
+          "frames_skipped": 268,
+          "frames_skipped_pct": 44.7,
+          "empty_skipped": 228,
+          "animals_missed": 40,
+          "animals_missed_pct": 14.8
+        },
+        {
+          "skip_below": 0.56,
+          "frames_skipped": 270,
+          "frames_skipped_pct": 45.0,
+          "empty_skipped": 229,
+          "animals_missed": 41,
+          "animals_missed_pct": 15.1
+        },
+        {
+          "skip_below": 0.57,
+          "frames_skipped": 270,
+          "frames_skipped_pct": 45.0,
+          "empty_skipped": 229,
+          "animals_missed": 41,
+          "animals_missed_pct": 15.1
+        },
+        {
+          "skip_below": 0.58,
+          "frames_skipped": 272,
+          "frames_skipped_pct": 45.3,
+          "empty_skipped": 230,
+          "animals_missed": 42,
+          "animals_missed_pct": 15.5
+        },
+        {
+          "skip_below": 0.59,
+          "frames_skipped": 278,
+          "frames_skipped_pct": 46.3,
+          "empty_skipped": 236,
+          "animals_missed": 42,
+          "animals_missed_pct": 15.5
+        },
+        {
+          "skip_below": 0.6,
+          "frames_skipped": 281,
+          "frames_skipped_pct": 46.8,
+          "empty_skipped": 239,
+          "animals_missed": 42,
+          "animals_missed_pct": 15.5
+        },
+        {
+          "skip_below": 0.61,
+          "frames_skipped": 288,
+          "frames_skipped_pct": 48.0,
+          "empty_skipped": 246,
+          "animals_missed": 42,
+          "animals_missed_pct": 15.5
+        },
+        {
+          "skip_below": 0.62,
+          "frames_skipped": 290,
+          "frames_skipped_pct": 48.3,
+          "empty_skipped": 248,
+          "animals_missed": 42,
+          "animals_missed_pct": 15.5
+        },
+        {
+          "skip_below": 0.63,
+          "frames_skipped": 293,
+          "frames_skipped_pct": 48.8,
+          "empty_skipped": 250,
+          "animals_missed": 43,
+          "animals_missed_pct": 15.9
+        },
+        {
+          "skip_below": 0.64,
+          "frames_skipped": 296,
+          "frames_skipped_pct": 49.3,
+          "empty_skipped": 253,
+          "animals_missed": 43,
+          "animals_missed_pct": 15.9
+        },
+        {
+          "skip_below": 0.65,
+          "frames_skipped": 301,
+          "frames_skipped_pct": 50.2,
+          "empty_skipped": 257,
+          "animals_missed": 44,
+          "animals_missed_pct": 16.2
+        },
+        {
+          "skip_below": 0.66,
+          "frames_skipped": 304,
+          "frames_skipped_pct": 50.7,
+          "empty_skipped": 259,
+          "animals_missed": 45,
+          "animals_missed_pct": 16.6
+        },
+        {
+          "skip_below": 0.67,
+          "frames_skipped": 307,
+          "frames_skipped_pct": 51.2,
+          "empty_skipped": 262,
+          "animals_missed": 45,
+          "animals_missed_pct": 16.6
+        },
+        {
+          "skip_below": 0.68,
+          "frames_skipped": 313,
+          "frames_skipped_pct": 52.2,
+          "empty_skipped": 268,
+          "animals_missed": 45,
+          "animals_missed_pct": 16.6
+        },
+        {
+          "skip_below": 0.69,
+          "frames_skipped": 313,
+          "frames_skipped_pct": 52.2,
+          "empty_skipped": 268,
+          "animals_missed": 45,
+          "animals_missed_pct": 16.6
+        },
+        {
+          "skip_below": 0.7,
+          "frames_skipped": 315,
+          "frames_skipped_pct": 52.5,
+          "empty_skipped": 269,
+          "animals_missed": 46,
+          "animals_missed_pct": 17.0
+        },
+        {
+          "skip_below": 0.71,
+          "frames_skipped": 319,
+          "frames_skipped_pct": 53.2,
+          "empty_skipped": 271,
+          "animals_missed": 48,
+          "animals_missed_pct": 17.7
+        },
+        {
+          "skip_below": 0.72,
+          "frames_skipped": 324,
+          "frames_skipped_pct": 54.0,
+          "empty_skipped": 272,
+          "animals_missed": 52,
+          "animals_missed_pct": 19.2
+        },
+        {
+          "skip_below": 0.73,
+          "frames_skipped": 325,
+          "frames_skipped_pct": 54.2,
+          "empty_skipped": 273,
+          "animals_missed": 52,
+          "animals_missed_pct": 19.2
+        },
+        {
+          "skip_below": 0.74,
+          "frames_skipped": 332,
+          "frames_skipped_pct": 55.3,
+          "empty_skipped": 276,
+          "animals_missed": 56,
+          "animals_missed_pct": 20.7
+        },
+        {
+          "skip_below": 0.75,
+          "frames_skipped": 339,
+          "frames_skipped_pct": 56.5,
+          "empty_skipped": 279,
+          "animals_missed": 60,
+          "animals_missed_pct": 22.1
+        },
+        {
+          "skip_below": 0.76,
+          "frames_skipped": 345,
+          "frames_skipped_pct": 57.5,
+          "empty_skipped": 282,
+          "animals_missed": 62,
+          "animals_missed_pct": 22.9
+        },
+        {
+          "skip_below": 0.77,
+          "frames_skipped": 352,
+          "frames_skipped_pct": 58.7,
+          "empty_skipped": 285,
+          "animals_missed": 66,
+          "animals_missed_pct": 24.4
+        },
+        {
+          "skip_below": 0.78,
+          "frames_skipped": 358,
+          "frames_skipped_pct": 59.7,
+          "empty_skipped": 287,
+          "animals_missed": 70,
+          "animals_missed_pct": 25.8
+        },
+        {
+          "skip_below": 0.79,
+          "frames_skipped": 363,
+          "frames_skipped_pct": 60.5,
+          "empty_skipped": 289,
+          "animals_missed": 73,
+          "animals_missed_pct": 26.9
+        },
+        {
+          "skip_below": 0.8,
+          "frames_skipped": 369,
+          "frames_skipped_pct": 61.5,
+          "empty_skipped": 291,
+          "animals_missed": 77,
+          "animals_missed_pct": 28.4
+        },
+        {
+          "skip_below": 0.81,
+          "frames_skipped": 370,
+          "frames_skipped_pct": 61.7,
+          "empty_skipped": 291,
+          "animals_missed": 78,
+          "animals_missed_pct": 28.8
+        },
+        {
+          "skip_below": 0.82,
+          "frames_skipped": 374,
+          "frames_skipped_pct": 62.3,
+          "empty_skipped": 293,
+          "animals_missed": 80,
+          "animals_missed_pct": 29.5
+        },
+        {
+          "skip_below": 0.83,
+          "frames_skipped": 374,
+          "frames_skipped_pct": 62.3,
+          "empty_skipped": 293,
+          "animals_missed": 80,
+          "animals_missed_pct": 29.5
+        },
+        {
+          "skip_below": 0.84,
+          "frames_skipped": 379,
+          "frames_skipped_pct": 63.2,
+          "empty_skipped": 295,
+          "animals_missed": 83,
+          "animals_missed_pct": 30.6
+        },
+        {
+          "skip_below": 0.85,
+          "frames_skipped": 381,
+          "frames_skipped_pct": 63.5,
+          "empty_skipped": 297,
+          "animals_missed": 83,
+          "animals_missed_pct": 30.6
+        },
+        {
+          "skip_below": 0.86,
+          "frames_skipped": 381,
+          "frames_skipped_pct": 63.5,
+          "empty_skipped": 297,
+          "animals_missed": 83,
+          "animals_missed_pct": 30.6
+        },
+        {
+          "skip_below": 0.87,
+          "frames_skipped": 390,
+          "frames_skipped_pct": 65.0,
+          "empty_skipped": 301,
+          "animals_missed": 88,
+          "animals_missed_pct": 32.5
+        },
+        {
+          "skip_below": 0.88,
+          "frames_skipped": 397,
+          "frames_skipped_pct": 66.2,
+          "empty_skipped": 303,
+          "animals_missed": 93,
+          "animals_missed_pct": 34.3
+        },
+        {
+          "skip_below": 0.89,
+          "frames_skipped": 400,
+          "frames_skipped_pct": 66.7,
+          "empty_skipped": 304,
+          "animals_missed": 95,
+          "animals_missed_pct": 35.1
+        },
+        {
+          "skip_below": 0.9,
+          "frames_skipped": 407,
+          "frames_skipped_pct": 67.8,
+          "empty_skipped": 306,
+          "animals_missed": 100,
+          "animals_missed_pct": 36.9
+        },
+        {
+          "skip_below": 0.91,
+          "frames_skipped": 412,
+          "frames_skipped_pct": 68.7,
+          "empty_skipped": 306,
+          "animals_missed": 105,
+          "animals_missed_pct": 38.7
+        },
+        {
+          "skip_below": 0.92,
+          "frames_skipped": 420,
+          "frames_skipped_pct": 70.0,
+          "empty_skipped": 307,
+          "animals_missed": 112,
+          "animals_missed_pct": 41.3
+        },
+        {
+          "skip_below": 0.93,
+          "frames_skipped": 431,
+          "frames_skipped_pct": 71.8,
+          "empty_skipped": 307,
+          "animals_missed": 123,
+          "animals_missed_pct": 45.4
+        },
+        {
+          "skip_below": 0.94,
+          "frames_skipped": 450,
+          "frames_skipped_pct": 75.0,
+          "empty_skipped": 307,
+          "animals_missed": 142,
+          "animals_missed_pct": 52.4
+        },
+        {
+          "skip_below": 0.95,
+          "frames_skipped": 487,
+          "frames_skipped_pct": 81.2,
+          "empty_skipped": 307,
+          "animals_missed": 179,
+          "animals_missed_pct": 66.1
+        },
+        {
+          "skip_below": 0.96,
+          "frames_skipped": 547,
+          "frames_skipped_pct": 91.2,
+          "empty_skipped": 307,
+          "animals_missed": 239,
+          "animals_missed_pct": 88.2
+        },
+        {
+          "skip_below": 0.97,
+          "frames_skipped": 572,
+          "frames_skipped_pct": 95.3,
+          "empty_skipped": 307,
+          "animals_missed": 264,
+          "animals_missed_pct": 97.4
+        },
+        {
+          "skip_below": 0.98,
+          "frames_skipped": 579,
+          "frames_skipped_pct": 96.5,
+          "empty_skipped": 307,
+          "animals_missed": 271,
+          "animals_missed_pct": 100.0
+        },
+        {
+          "skip_below": 0.99,
+          "frames_skipped": 579,
+          "frames_skipped_pct": 96.5,
+          "empty_skipped": 307,
+          "animals_missed": 271,
+          "animals_missed_pct": 100.0
+        },
+        {
+          "skip_below": 1.0,
+          "frames_skipped": 579,
+          "frames_skipped_pct": 96.5,
+          "empty_skipped": 307,
+          "animals_missed": 271,
+          "animals_missed_pct": 100.0
+        }
+      ],
+      "audit": {
+        "scope": "only frames a policy got wrong by CCT labels were checked by eye; the rest of the set was not audited",
+        "false_alerts_checked": 3,
+        "false_alerts_with_person": 3,
+        "false_alerts_not_checked": 0,
+        "false_alert_notes": [],
+        "missed_animals_visible": {
+          "not checked": 5,
+          "no": 7,
+          "faint": 9,
+          "yes": 2
+        },
+        "missed_animals_later_burst_frame": 18,
+        "missed_vehicles": [
+          {
+            "file_name": "59136522-23d2-11e8-a6a3-ec086b02610b.jpg",
+            "escalate": 0.1067,
+            "note": "dark dawn frame; no vehicle visible to the eye"
+          },
+          {
+            "file_name": "59e103e7-23d2-11e8-a6a3-ec086b02610b.jpg",
+            "escalate": 0.4545,
+            "note": "motion-blurred dark shape under the bridge deck"
+          }
+        ]
+      },
+      "missed": [
+        {
+          "file_name": "59641f8d-23d2-11e8-a6a3-ec086b02610b.jpg",
+          "label": "squirrel",
+          "lighting": "day",
+          "location": "33",
+          "present": 0.3826,
+          "frame_num": "2",
+          "seq_num_frames": "3",
+          "burst_max_present": 0.7588
+        },
+        {
+          "file_name": "58bd1d22-23d2-11e8-a6a3-ec086b02610b.jpg",
+          "label": "squirrel",
+          "lighting": "day",
+          "location": "78",
+          "present": 0.3233,
+          "frame_num": "2",
+          "seq_num_frames": "3",
+          "burst_max_present": 0.6014
+        },
+        {
+          "file_name": "597387f9-23d2-11e8-a6a3-ec086b02610b.jpg",
+          "label": "fox",
+          "lighting": "night_ir",
+          "location": "55",
+          "present": 0.2716,
+          "frame_num": "2",
+          "seq_num_frames": "3",
+          "burst_max_present": 0.9281
+        },
+        {
+          "file_name": "58678c61-23d2-11e8-a6a3-ec086b02610b.jpg",
+          "label": "coyote",
+          "lighting": "day",
+          "location": "107",
+          "present": 0.213,
+          "frame_num": "2",
+          "seq_num_frames": "3",
+          "burst_max_present": 0.2561
+        },
+        {
+          "file_name": "59260d4b-23d2-11e8-a6a3-ec086b02610b.jpg",
+          "label": "bird",
+          "lighting": "day",
+          "location": "87",
+          "present": 0.239,
+          "frame_num": "3",
+          "seq_num_frames": "3",
+          "burst_max_present": 0.2979
+        },
+        {
+          "file_name": "59af95eb-23d2-11e8-a6a3-ec086b02610b.jpg",
+          "label": "bird",
+          "lighting": "day",
+          "location": "3",
+          "present": 0.3035,
+          "frame_num": "3",
+          "seq_num_frames": "3",
+          "burst_max_present": 0.3532
+        },
+        {
+          "file_name": "5949d0bd-23d2-11e8-a6a3-ec086b02610b.jpg",
+          "label": "deer",
+          "lighting": "night_ir",
+          "location": "117",
+          "present": 0.3784,
+          "frame_num": "1",
+          "seq_num_frames": "3",
+          "burst_max_present": 0.3784
+        },
+        {
+          "file_name": "58e59acd-23d2-11e8-a6a3-ec086b02610b.jpg",
+          "label": "opossum",
+          "lighting": "night_ir",
+          "location": "75",
+          "present": 0.3926,
+          "frame_num": "3",
+          "seq_num_frames": "3",
+          "burst_max_present": 0.4203
+        },
+        {
+          "file_name": "587d429b-23d2-11e8-a6a3-ec086b02610b.jpg",
+          "label": "squirrel",
+          "lighting": "night_ir",
+          "location": "78",
+          "present": 0.3367,
+          "frame_num": "3",
+          "seq_num_frames": "3",
+          "burst_max_present": 0.8711
+        },
+        {
+          "file_name": "58d92faa-23d2-11e8-a6a3-ec086b02610b.jpg",
+          "label": "bobcat",
+          "lighting": "day",
+          "location": "95",
+          "present": 0.3562,
+          "frame_num": "3",
+          "seq_num_frames": "3",
+          "burst_max_present": 0.8164
+        },
+        {
+          "file_name": "596a4f9a-23d2-11e8-a6a3-ec086b02610b.jpg",
+          "label": "opossum",
+          "lighting": "night_ir",
+          "location": "28",
+          "present": 0.3919,
+          "frame_num": "3",
+          "seq_num_frames": "3",
+          "burst_max_present": 0.4399
+        },
+        {
+          "file_name": "58732f4c-23d2-11e8-a6a3-ec086b02610b.jpg",
+          "label": "deer",
+          "lighting": "night_ir",
+          "location": "117",
+          "present": 0.2797,
+          "frame_num": "2",
+          "seq_num_frames": "3",
+          "burst_max_present": 0.6056
+        },
+        {
+          "file_name": "58c66358-23d2-11e8-a6a3-ec086b02610b.jpg",
+          "label": "rabbit",
+          "lighting": "day",
+          "location": "115",
+          "present": 0.2437,
+          "frame_num": "3",
+          "seq_num_frames": "3",
+          "burst_max_present": 0.9221
+        },
+        {
+          "file_name": "59a179a8-23d2-11e8-a6a3-ec086b02610b.jpg",
+          "label": "rabbit",
+          "lighting": "night_ir",
+          "location": "61",
+          "present": 0.2021,
+          "frame_num": "3",
+          "seq_num_frames": "3",
+          "burst_max_present": 0.2327
+        },
+        {
+          "file_name": "58b2f0c0-23d2-11e8-a6a3-ec086b02610b.jpg",
+          "label": "cat",
+          "lighting": "night_ir",
+          "location": "78",
+          "present": 0.3541,
+          "frame_num": "1",
+          "seq_num_frames": "3",
+          "burst_max_present": 0.4573
+        },
+        {
+          "file_name": "5a1e5151-23d2-11e8-a6a3-ec086b02610b.jpg",
+          "label": "rabbit",
+          "lighting": "night_ir",
+          "location": "5",
+          "present": 0.3527,
+          "frame_num": "2",
+          "seq_num_frames": "3",
+          "burst_max_present": 0.3547
+        },
+        {
+          "file_name": "5957c4f6-23d2-11e8-a6a3-ec086b02610b.jpg",
+          "label": "bird",
+          "lighting": "day",
+          "location": "70",
+          "present": 0.3947,
+          "frame_num": "1",
+          "seq_num_frames": "1",
+          "burst_max_present": 0.3947
+        },
+        {
+          "file_name": "5a23105a-23d2-11e8-a6a3-ec086b02610b.jpg",
+          "label": "rodent",
+          "lighting": "night_ir",
+          "location": "10",
+          "present": 0.4078,
+          "frame_num": "3",
+          "seq_num_frames": "3",
+          "burst_max_present": 0.8672
+        },
+        {
+          "file_name": "58cca688-23d2-11e8-a6a3-ec086b02610b.jpg",
+          "label": "bird",
+          "lighting": "day",
+          "location": "94",
+          "present": 0.3086,
+          "frame_num": "2",
+          "seq_num_frames": "3",
+          "burst_max_present": 0.3467
+        },
+        {
+          "file_name": "5a0e37f2-23d2-11e8-a6a3-ec086b02610b.jpg",
+          "label": "coyote",
+          "lighting": "day",
+          "location": "46",
+          "present": 0.3126,
+          "frame_num": "2",
+          "seq_num_frames": "3",
+          "burst_max_present": 0.9616
+        },
+        {
+          "file_name": "588dbafc-23d2-11e8-a6a3-ec086b02610b.jpg",
+          "label": "opossum",
+          "lighting": "night_ir",
+          "location": "78",
+          "present": 0.3869,
+          "frame_num": "2",
+          "seq_num_frames": "3",
+          "burst_max_present": 0.6267
+        },
+        {
+          "file_name": "58ec557f-23d2-11e8-a6a3-ec086b02610b.jpg",
+          "label": "deer",
+          "lighting": "night_ir",
+          "location": "84",
+          "present": 0.2772,
+          "frame_num": "1",
+          "seq_num_frames": "3",
+          "burst_max_present": 0.4108
+        },
+        {
+          "file_name": "597fecee-23d2-11e8-a6a3-ec086b02610b.jpg",
+          "label": "coyote",
+          "lighting": "night_ir",
+          "location": "23",
+          "present": 0.3294,
+          "frame_num": "1",
+          "seq_num_frames": "1",
+          "burst_max_present": 0.3294
+        }
+      ]
     },
-    "empty_tiers": {
-      "skip": 0,
-      "small": 0,
-      "large": 0,
-      "escalate": 0
-    },
-    "vehicles_caught": 39,
-    "false_alerts": 0,
-    "false_alerts_on_empty": 0,
-    "presence_auc_animal_vs_empty": null,
-    "mean_present_animal": null,
-    "mean_present_empty": null,
-    "latency_ms_p50": 458.1,
-    "latency_ms_p90": 476.3
-  },
-  "vehicle_set_by_lighting": {
-    "day": {
-      "n_frames": 38,
-      "n_empty": 0,
-      "n_animal": 0,
-      "n_vehicle": 38,
-      "empty_skipped": 0,
-      "empty_skipped_pct": null,
-      "animals_missed": 0,
-      "animals_missed_pct": null,
-      "frames_skipped": 0,
-      "frames_skipped_pct": 0.0,
-      "tiers": {
-        "skip": 0,
-        "small": 0,
-        "large": 1,
-        "escalate": 37
+    "v2": {
+      "description": "v2: confidence band + burst context",
+      "thresholds": {
+        "skip_below": 0.41,
+        "small_above": 0.72,
+        "escalate_above": 0.54,
+        "use_difficulty": false,
+        "burst_aware": true
       },
-      "animal_tiers": {
-        "skip": 0,
-        "small": 0,
-        "large": 0,
-        "escalate": 0
+      "heldout": {
+        "all": {
+          "n_frames": 600,
+          "n_empty": 310,
+          "n_animal": 271,
+          "n_vehicle": 19,
+          "empty_skipped": 150,
+          "empty_skipped_pct": 48.4,
+          "animals_missed": 9,
+          "animals_missed_pct": 3.3,
+          "frames_skipped": 159,
+          "frames_skipped_pct": 26.5,
+          "tiers": {
+            "skip": 159,
+            "small": 254,
+            "large": 165,
+            "escalate": 22
+          },
+          "animal_tiers": {
+            "skip": 9,
+            "small": 218,
+            "large": 43,
+            "escalate": 1
+          },
+          "empty_tiers": {
+            "skip": 150,
+            "small": 35,
+            "large": 122,
+            "escalate": 3
+          },
+          "vehicles_caught": 18,
+          "false_alerts": 4,
+          "false_alerts_on_empty": 3,
+          "presence_auc_animal_vs_empty": 0.8998,
+          "latency_ms_p50": 498.9,
+          "latency_ms_p90": 658.1
+        },
+        "day": {
+          "n_frames": 358,
+          "n_empty": 228,
+          "n_animal": 112,
+          "n_vehicle": 18,
+          "empty_skipped": 118,
+          "empty_skipped_pct": 51.8,
+          "animals_missed": 5,
+          "animals_missed_pct": 4.5,
+          "frames_skipped": 123,
+          "frames_skipped_pct": 34.4,
+          "tiers": {
+            "skip": 123,
+            "small": 110,
+            "large": 105,
+            "escalate": 20
+          },
+          "animal_tiers": {
+            "skip": 5,
+            "small": 90,
+            "large": 17,
+            "escalate": 0
+          },
+          "empty_tiers": {
+            "skip": 118,
+            "small": 19,
+            "large": 88,
+            "escalate": 3
+          },
+          "vehicles_caught": 17,
+          "false_alerts": 3,
+          "false_alerts_on_empty": 3,
+          "presence_auc_animal_vs_empty": 0.9025,
+          "latency_ms_p50": 502.0,
+          "latency_ms_p90": 652.6
+        },
+        "night_ir": {
+          "n_frames": 242,
+          "n_empty": 82,
+          "n_animal": 159,
+          "n_vehicle": 1,
+          "empty_skipped": 32,
+          "empty_skipped_pct": 39.0,
+          "animals_missed": 4,
+          "animals_missed_pct": 2.5,
+          "frames_skipped": 36,
+          "frames_skipped_pct": 14.9,
+          "tiers": {
+            "skip": 36,
+            "small": 144,
+            "large": 60,
+            "escalate": 2
+          },
+          "animal_tiers": {
+            "skip": 4,
+            "small": 128,
+            "large": 26,
+            "escalate": 1
+          },
+          "empty_tiers": {
+            "skip": 32,
+            "small": 16,
+            "large": 34,
+            "escalate": 0
+          },
+          "vehicles_caught": 1,
+          "false_alerts": 1,
+          "false_alerts_on_empty": 0,
+          "presence_auc_animal_vs_empty": 0.8798,
+          "latency_ms_p50": 497.2,
+          "latency_ms_p90": 665.0
+        }
       },
-      "empty_tiers": {
-        "skip": 0,
-        "small": 0,
-        "large": 0,
-        "escalate": 0
+      "vehicle_set": {
+        "n_frames": 40,
+        "n_empty": 0,
+        "n_animal": 0,
+        "n_vehicle": 40,
+        "empty_skipped": 0,
+        "empty_skipped_pct": null,
+        "animals_missed": 0,
+        "animals_missed_pct": null,
+        "frames_skipped": 0,
+        "frames_skipped_pct": 0.0,
+        "tiers": {
+          "skip": 0,
+          "small": 0,
+          "large": 1,
+          "escalate": 39
+        },
+        "animal_tiers": {
+          "skip": 0,
+          "small": 0,
+          "large": 0,
+          "escalate": 0
+        },
+        "empty_tiers": {
+          "skip": 0,
+          "small": 0,
+          "large": 0,
+          "escalate": 0
+        },
+        "vehicles_caught": 39,
+        "false_alerts": 0,
+        "false_alerts_on_empty": 0,
+        "presence_auc_animal_vs_empty": null,
+        "latency_ms_p50": 458.1,
+        "latency_ms_p90": 476.3
       },
-      "vehicles_caught": 37,
-      "false_alerts": 0,
-      "false_alerts_on_empty": 0,
-      "presence_auc_animal_vs_empty": null,
-      "mean_present_animal": null,
-      "mean_present_empty": null,
-      "latency_ms_p50": 458.1,
-      "latency_ms_p90": 477.2
-    },
-    "night_ir": {
-      "n_frames": 2,
-      "n_empty": 0,
-      "n_animal": 0,
-      "n_vehicle": 2,
-      "empty_skipped": 0,
-      "empty_skipped_pct": null,
-      "animals_missed": 0,
-      "animals_missed_pct": null,
-      "frames_skipped": 0,
-      "frames_skipped_pct": 0.0,
-      "tiers": {
-        "skip": 0,
-        "small": 0,
-        "large": 0,
-        "escalate": 2
+      "vehicles": {
+        "caught": 57,
+        "n": 59,
+        "caught_pct": 96.6
       },
-      "animal_tiers": {
-        "skip": 0,
-        "small": 0,
-        "large": 0,
-        "escalate": 0
+      "sequences": {
+        "all": {
+          "n_sequences": 599,
+          "n_frames": 1079,
+          "frames_skipped": 188,
+          "n_empty": 310,
+          "empty_skipped": 150,
+          "empty_skipped_pct": 48.4,
+          "n_animal": 270,
+          "animals_missed": 9,
+          "animals_missed_pct": 3.3,
+          "animal_partly_skipped": 0,
+          "n_vehicle": 19,
+          "vehicles_caught": 18
+        },
+        "day": {
+          "n_sequences": 357,
+          "n_frames": 558,
+          "frames_skipped": 143,
+          "n_empty": 228,
+          "empty_skipped": 118,
+          "empty_skipped_pct": 51.8,
+          "n_animal": 111,
+          "animals_missed": 5,
+          "animals_missed_pct": 4.5,
+          "animal_partly_skipped": 0,
+          "n_vehicle": 18,
+          "vehicles_caught": 17
+        },
+        "night_ir": {
+          "n_sequences": 242,
+          "n_frames": 521,
+          "frames_skipped": 45,
+          "n_empty": 82,
+          "empty_skipped": 32,
+          "empty_skipped_pct": 39.0,
+          "n_animal": 159,
+          "animals_missed": 4,
+          "animals_missed_pct": 2.5,
+          "animal_partly_skipped": 0,
+          "n_vehicle": 1,
+          "vehicles_caught": 1
+        }
       },
-      "empty_tiers": {
-        "skip": 0,
-        "small": 0,
-        "large": 0,
-        "escalate": 0
+      "sweep": [
+        {
+          "skip_below": 0.0,
+          "frames_skipped": 0,
+          "frames_skipped_pct": 0.0,
+          "empty_skipped": 0,
+          "animals_missed": 0,
+          "animals_missed_pct": 0.0
+        },
+        {
+          "skip_below": 0.01,
+          "frames_skipped": 0,
+          "frames_skipped_pct": 0.0,
+          "empty_skipped": 0,
+          "animals_missed": 0,
+          "animals_missed_pct": 0.0
+        },
+        {
+          "skip_below": 0.02,
+          "frames_skipped": 0,
+          "frames_skipped_pct": 0.0,
+          "empty_skipped": 0,
+          "animals_missed": 0,
+          "animals_missed_pct": 0.0
+        },
+        {
+          "skip_below": 0.03,
+          "frames_skipped": 0,
+          "frames_skipped_pct": 0.0,
+          "empty_skipped": 0,
+          "animals_missed": 0,
+          "animals_missed_pct": 0.0
+        },
+        {
+          "skip_below": 0.04,
+          "frames_skipped": 0,
+          "frames_skipped_pct": 0.0,
+          "empty_skipped": 0,
+          "animals_missed": 0,
+          "animals_missed_pct": 0.0
+        },
+        {
+          "skip_below": 0.05,
+          "frames_skipped": 0,
+          "frames_skipped_pct": 0.0,
+          "empty_skipped": 0,
+          "animals_missed": 0,
+          "animals_missed_pct": 0.0
+        },
+        {
+          "skip_below": 0.06,
+          "frames_skipped": 0,
+          "frames_skipped_pct": 0.0,
+          "empty_skipped": 0,
+          "animals_missed": 0,
+          "animals_missed_pct": 0.0
+        },
+        {
+          "skip_below": 0.07,
+          "frames_skipped": 0,
+          "frames_skipped_pct": 0.0,
+          "empty_skipped": 0,
+          "animals_missed": 0,
+          "animals_missed_pct": 0.0
+        },
+        {
+          "skip_below": 0.08,
+          "frames_skipped": 0,
+          "frames_skipped_pct": 0.0,
+          "empty_skipped": 0,
+          "animals_missed": 0,
+          "animals_missed_pct": 0.0
+        },
+        {
+          "skip_below": 0.09,
+          "frames_skipped": 0,
+          "frames_skipped_pct": 0.0,
+          "empty_skipped": 0,
+          "animals_missed": 0,
+          "animals_missed_pct": 0.0
+        },
+        {
+          "skip_below": 0.1,
+          "frames_skipped": 0,
+          "frames_skipped_pct": 0.0,
+          "empty_skipped": 0,
+          "animals_missed": 0,
+          "animals_missed_pct": 0.0
+        },
+        {
+          "skip_below": 0.11,
+          "frames_skipped": 0,
+          "frames_skipped_pct": 0.0,
+          "empty_skipped": 0,
+          "animals_missed": 0,
+          "animals_missed_pct": 0.0
+        },
+        {
+          "skip_below": 0.12,
+          "frames_skipped": 0,
+          "frames_skipped_pct": 0.0,
+          "empty_skipped": 0,
+          "animals_missed": 0,
+          "animals_missed_pct": 0.0
+        },
+        {
+          "skip_below": 0.13,
+          "frames_skipped": 0,
+          "frames_skipped_pct": 0.0,
+          "empty_skipped": 0,
+          "animals_missed": 0,
+          "animals_missed_pct": 0.0
+        },
+        {
+          "skip_below": 0.14,
+          "frames_skipped": 0,
+          "frames_skipped_pct": 0.0,
+          "empty_skipped": 0,
+          "animals_missed": 0,
+          "animals_missed_pct": 0.0
+        },
+        {
+          "skip_below": 0.15,
+          "frames_skipped": 1,
+          "frames_skipped_pct": 0.2,
+          "empty_skipped": 1,
+          "animals_missed": 0,
+          "animals_missed_pct": 0.0
+        },
+        {
+          "skip_below": 0.16,
+          "frames_skipped": 5,
+          "frames_skipped_pct": 0.8,
+          "empty_skipped": 5,
+          "animals_missed": 0,
+          "animals_missed_pct": 0.0
+        },
+        {
+          "skip_below": 0.17,
+          "frames_skipped": 9,
+          "frames_skipped_pct": 1.5,
+          "empty_skipped": 9,
+          "animals_missed": 0,
+          "animals_missed_pct": 0.0
+        },
+        {
+          "skip_below": 0.18,
+          "frames_skipped": 11,
+          "frames_skipped_pct": 1.8,
+          "empty_skipped": 11,
+          "animals_missed": 0,
+          "animals_missed_pct": 0.0
+        },
+        {
+          "skip_below": 0.19,
+          "frames_skipped": 13,
+          "frames_skipped_pct": 2.2,
+          "empty_skipped": 13,
+          "animals_missed": 0,
+          "animals_missed_pct": 0.0
+        },
+        {
+          "skip_below": 0.2,
+          "frames_skipped": 16,
+          "frames_skipped_pct": 2.7,
+          "empty_skipped": 16,
+          "animals_missed": 0,
+          "animals_missed_pct": 0.0
+        },
+        {
+          "skip_below": 0.21,
+          "frames_skipped": 24,
+          "frames_skipped_pct": 4.0,
+          "empty_skipped": 24,
+          "animals_missed": 0,
+          "animals_missed_pct": 0.0
+        },
+        {
+          "skip_below": 0.22,
+          "frames_skipped": 26,
+          "frames_skipped_pct": 4.3,
+          "empty_skipped": 26,
+          "animals_missed": 0,
+          "animals_missed_pct": 0.0
+        },
+        {
+          "skip_below": 0.23,
+          "frames_skipped": 34,
+          "frames_skipped_pct": 5.7,
+          "empty_skipped": 34,
+          "animals_missed": 0,
+          "animals_missed_pct": 0.0
+        },
+        {
+          "skip_below": 0.24,
+          "frames_skipped": 42,
+          "frames_skipped_pct": 7.0,
+          "empty_skipped": 41,
+          "animals_missed": 1,
+          "animals_missed_pct": 0.4
+        },
+        {
+          "skip_below": 0.25,
+          "frames_skipped": 43,
+          "frames_skipped_pct": 7.2,
+          "empty_skipped": 42,
+          "animals_missed": 1,
+          "animals_missed_pct": 0.4
+        },
+        {
+          "skip_below": 0.26,
+          "frames_skipped": 56,
+          "frames_skipped_pct": 9.3,
+          "empty_skipped": 54,
+          "animals_missed": 2,
+          "animals_missed_pct": 0.7
+        },
+        {
+          "skip_below": 0.27,
+          "frames_skipped": 61,
+          "frames_skipped_pct": 10.2,
+          "empty_skipped": 59,
+          "animals_missed": 2,
+          "animals_missed_pct": 0.7
+        },
+        {
+          "skip_below": 0.28,
+          "frames_skipped": 68,
+          "frames_skipped_pct": 11.3,
+          "empty_skipped": 66,
+          "animals_missed": 2,
+          "animals_missed_pct": 0.7
+        },
+        {
+          "skip_below": 0.29,
+          "frames_skipped": 77,
+          "frames_skipped_pct": 12.8,
+          "empty_skipped": 75,
+          "animals_missed": 2,
+          "animals_missed_pct": 0.7
+        },
+        {
+          "skip_below": 0.3,
+          "frames_skipped": 83,
+          "frames_skipped_pct": 13.8,
+          "empty_skipped": 80,
+          "animals_missed": 3,
+          "animals_missed_pct": 1.1
+        },
+        {
+          "skip_below": 0.31,
+          "frames_skipped": 92,
+          "frames_skipped_pct": 15.3,
+          "empty_skipped": 89,
+          "animals_missed": 3,
+          "animals_missed_pct": 1.1
+        },
+        {
+          "skip_below": 0.32,
+          "frames_skipped": 102,
+          "frames_skipped_pct": 17.0,
+          "empty_skipped": 99,
+          "animals_missed": 3,
+          "animals_missed_pct": 1.1
+        },
+        {
+          "skip_below": 0.33,
+          "frames_skipped": 107,
+          "frames_skipped_pct": 17.8,
+          "empty_skipped": 103,
+          "animals_missed": 4,
+          "animals_missed_pct": 1.5
+        },
+        {
+          "skip_below": 0.34,
+          "frames_skipped": 112,
+          "frames_skipped_pct": 18.7,
+          "empty_skipped": 108,
+          "animals_missed": 4,
+          "animals_missed_pct": 1.5
+        },
+        {
+          "skip_below": 0.35,
+          "frames_skipped": 117,
+          "frames_skipped_pct": 19.5,
+          "empty_skipped": 112,
+          "animals_missed": 5,
+          "animals_missed_pct": 1.8
+        },
+        {
+          "skip_below": 0.36,
+          "frames_skipped": 126,
+          "frames_skipped_pct": 21.0,
+          "empty_skipped": 119,
+          "animals_missed": 7,
+          "animals_missed_pct": 2.6
+        },
+        {
+          "skip_below": 0.37,
+          "frames_skipped": 135,
+          "frames_skipped_pct": 22.5,
+          "empty_skipped": 128,
+          "animals_missed": 7,
+          "animals_missed_pct": 2.6
+        },
+        {
+          "skip_below": 0.38,
+          "frames_skipped": 140,
+          "frames_skipped_pct": 23.3,
+          "empty_skipped": 132,
+          "animals_missed": 8,
+          "animals_missed_pct": 3.0
+        },
+        {
+          "skip_below": 0.39,
+          "frames_skipped": 150,
+          "frames_skipped_pct": 25.0,
+          "empty_skipped": 142,
+          "animals_missed": 8,
+          "animals_missed_pct": 3.0
+        },
+        {
+          "skip_below": 0.4,
+          "frames_skipped": 155,
+          "frames_skipped_pct": 25.8,
+          "empty_skipped": 146,
+          "animals_missed": 9,
+          "animals_missed_pct": 3.3
+        },
+        {
+          "skip_below": 0.41,
+          "frames_skipped": 159,
+          "frames_skipped_pct": 26.5,
+          "empty_skipped": 150,
+          "animals_missed": 9,
+          "animals_missed_pct": 3.3
+        },
+        {
+          "skip_below": 0.42,
+          "frames_skipped": 167,
+          "frames_skipped_pct": 27.8,
+          "empty_skipped": 157,
+          "animals_missed": 10,
+          "animals_missed_pct": 3.7
+        },
+        {
+          "skip_below": 0.43,
+          "frames_skipped": 175,
+          "frames_skipped_pct": 29.2,
+          "empty_skipped": 164,
+          "animals_missed": 11,
+          "animals_missed_pct": 4.1
+        },
+        {
+          "skip_below": 0.44,
+          "frames_skipped": 179,
+          "frames_skipped_pct": 29.8,
+          "empty_skipped": 166,
+          "animals_missed": 13,
+          "animals_missed_pct": 4.8
+        },
+        {
+          "skip_below": 0.45,
+          "frames_skipped": 184,
+          "frames_skipped_pct": 30.7,
+          "empty_skipped": 171,
+          "animals_missed": 13,
+          "animals_missed_pct": 4.8
+        },
+        {
+          "skip_below": 0.46,
+          "frames_skipped": 193,
+          "frames_skipped_pct": 32.2,
+          "empty_skipped": 178,
+          "animals_missed": 15,
+          "animals_missed_pct": 5.5
+        },
+        {
+          "skip_below": 0.47,
+          "frames_skipped": 197,
+          "frames_skipped_pct": 32.8,
+          "empty_skipped": 182,
+          "animals_missed": 15,
+          "animals_missed_pct": 5.5
+        },
+        {
+          "skip_below": 0.48,
+          "frames_skipped": 201,
+          "frames_skipped_pct": 33.5,
+          "empty_skipped": 186,
+          "animals_missed": 15,
+          "animals_missed_pct": 5.5
+        },
+        {
+          "skip_below": 0.49,
+          "frames_skipped": 205,
+          "frames_skipped_pct": 34.2,
+          "empty_skipped": 190,
+          "animals_missed": 15,
+          "animals_missed_pct": 5.5
+        },
+        {
+          "skip_below": 0.5,
+          "frames_skipped": 214,
+          "frames_skipped_pct": 35.7,
+          "empty_skipped": 197,
+          "animals_missed": 17,
+          "animals_missed_pct": 6.3
+        },
+        {
+          "skip_below": 0.51,
+          "frames_skipped": 216,
+          "frames_skipped_pct": 36.0,
+          "empty_skipped": 198,
+          "animals_missed": 18,
+          "animals_missed_pct": 6.6
+        },
+        {
+          "skip_below": 0.52,
+          "frames_skipped": 224,
+          "frames_skipped_pct": 37.3,
+          "empty_skipped": 204,
+          "animals_missed": 20,
+          "animals_missed_pct": 7.4
+        },
+        {
+          "skip_below": 0.53,
+          "frames_skipped": 228,
+          "frames_skipped_pct": 38.0,
+          "empty_skipped": 208,
+          "animals_missed": 20,
+          "animals_missed_pct": 7.4
+        },
+        {
+          "skip_below": 0.54,
+          "frames_skipped": 239,
+          "frames_skipped_pct": 39.8,
+          "empty_skipped": 219,
+          "animals_missed": 20,
+          "animals_missed_pct": 7.4
+        },
+        {
+          "skip_below": 0.55,
+          "frames_skipped": 245,
+          "frames_skipped_pct": 40.8,
+          "empty_skipped": 225,
+          "animals_missed": 20,
+          "animals_missed_pct": 7.4
+        },
+        {
+          "skip_below": 0.56,
+          "frames_skipped": 246,
+          "frames_skipped_pct": 41.0,
+          "empty_skipped": 226,
+          "animals_missed": 20,
+          "animals_missed_pct": 7.4
+        },
+        {
+          "skip_below": 0.57,
+          "frames_skipped": 246,
+          "frames_skipped_pct": 41.0,
+          "empty_skipped": 226,
+          "animals_missed": 20,
+          "animals_missed_pct": 7.4
+        },
+        {
+          "skip_below": 0.58,
+          "frames_skipped": 247,
+          "frames_skipped_pct": 41.2,
+          "empty_skipped": 227,
+          "animals_missed": 20,
+          "animals_missed_pct": 7.4
+        },
+        {
+          "skip_below": 0.59,
+          "frames_skipped": 254,
+          "frames_skipped_pct": 42.3,
+          "empty_skipped": 234,
+          "animals_missed": 20,
+          "animals_missed_pct": 7.4
+        },
+        {
+          "skip_below": 0.6,
+          "frames_skipped": 257,
+          "frames_skipped_pct": 42.8,
+          "empty_skipped": 237,
+          "animals_missed": 20,
+          "animals_missed_pct": 7.4
+        },
+        {
+          "skip_below": 0.61,
+          "frames_skipped": 267,
+          "frames_skipped_pct": 44.5,
+          "empty_skipped": 245,
+          "animals_missed": 22,
+          "animals_missed_pct": 8.1
+        },
+        {
+          "skip_below": 0.62,
+          "frames_skipped": 269,
+          "frames_skipped_pct": 44.8,
+          "empty_skipped": 247,
+          "animals_missed": 22,
+          "animals_missed_pct": 8.1
+        },
+        {
+          "skip_below": 0.63,
+          "frames_skipped": 273,
+          "frames_skipped_pct": 45.5,
+          "empty_skipped": 249,
+          "animals_missed": 24,
+          "animals_missed_pct": 8.9
+        },
+        {
+          "skip_below": 0.64,
+          "frames_skipped": 277,
+          "frames_skipped_pct": 46.2,
+          "empty_skipped": 252,
+          "animals_missed": 25,
+          "animals_missed_pct": 9.2
+        },
+        {
+          "skip_below": 0.65,
+          "frames_skipped": 280,
+          "frames_skipped_pct": 46.7,
+          "empty_skipped": 255,
+          "animals_missed": 25,
+          "animals_missed_pct": 9.2
+        },
+        {
+          "skip_below": 0.66,
+          "frames_skipped": 284,
+          "frames_skipped_pct": 47.3,
+          "empty_skipped": 258,
+          "animals_missed": 26,
+          "animals_missed_pct": 9.6
+        },
+        {
+          "skip_below": 0.67,
+          "frames_skipped": 288,
+          "frames_skipped_pct": 48.0,
+          "empty_skipped": 261,
+          "animals_missed": 27,
+          "animals_missed_pct": 10.0
+        },
+        {
+          "skip_below": 0.68,
+          "frames_skipped": 293,
+          "frames_skipped_pct": 48.8,
+          "empty_skipped": 266,
+          "animals_missed": 27,
+          "animals_missed_pct": 10.0
+        },
+        {
+          "skip_below": 0.69,
+          "frames_skipped": 293,
+          "frames_skipped_pct": 48.8,
+          "empty_skipped": 266,
+          "animals_missed": 27,
+          "animals_missed_pct": 10.0
+        },
+        {
+          "skip_below": 0.7,
+          "frames_skipped": 295,
+          "frames_skipped_pct": 49.2,
+          "empty_skipped": 267,
+          "animals_missed": 28,
+          "animals_missed_pct": 10.3
+        },
+        {
+          "skip_below": 0.71,
+          "frames_skipped": 298,
+          "frames_skipped_pct": 49.7,
+          "empty_skipped": 269,
+          "animals_missed": 29,
+          "animals_missed_pct": 10.7
+        },
+        {
+          "skip_below": 0.72,
+          "frames_skipped": 301,
+          "frames_skipped_pct": 50.2,
+          "empty_skipped": 270,
+          "animals_missed": 31,
+          "animals_missed_pct": 11.4
+        },
+        {
+          "skip_below": 0.73,
+          "frames_skipped": 302,
+          "frames_skipped_pct": 50.3,
+          "empty_skipped": 271,
+          "animals_missed": 31,
+          "animals_missed_pct": 11.4
+        },
+        {
+          "skip_below": 0.74,
+          "frames_skipped": 308,
+          "frames_skipped_pct": 51.3,
+          "empty_skipped": 274,
+          "animals_missed": 34,
+          "animals_missed_pct": 12.5
+        },
+        {
+          "skip_below": 0.75,
+          "frames_skipped": 312,
+          "frames_skipped_pct": 52.0,
+          "empty_skipped": 278,
+          "animals_missed": 34,
+          "animals_missed_pct": 12.5
+        },
+        {
+          "skip_below": 0.76,
+          "frames_skipped": 318,
+          "frames_skipped_pct": 53.0,
+          "empty_skipped": 282,
+          "animals_missed": 35,
+          "animals_missed_pct": 12.9
+        },
+        {
+          "skip_below": 0.77,
+          "frames_skipped": 323,
+          "frames_skipped_pct": 53.8,
+          "empty_skipped": 284,
+          "animals_missed": 38,
+          "animals_missed_pct": 14.0
+        },
+        {
+          "skip_below": 0.78,
+          "frames_skipped": 326,
+          "frames_skipped_pct": 54.3,
+          "empty_skipped": 285,
+          "animals_missed": 40,
+          "animals_missed_pct": 14.8
+        },
+        {
+          "skip_below": 0.79,
+          "frames_skipped": 331,
+          "frames_skipped_pct": 55.2,
+          "empty_skipped": 286,
+          "animals_missed": 44,
+          "animals_missed_pct": 16.2
+        },
+        {
+          "skip_below": 0.8,
+          "frames_skipped": 337,
+          "frames_skipped_pct": 56.2,
+          "empty_skipped": 289,
+          "animals_missed": 47,
+          "animals_missed_pct": 17.3
+        },
+        {
+          "skip_below": 0.81,
+          "frames_skipped": 340,
+          "frames_skipped_pct": 56.7,
+          "empty_skipped": 290,
+          "animals_missed": 49,
+          "animals_missed_pct": 18.1
+        },
+        {
+          "skip_below": 0.82,
+          "frames_skipped": 345,
+          "frames_skipped_pct": 57.5,
+          "empty_skipped": 292,
+          "animals_missed": 52,
+          "animals_missed_pct": 19.2
+        },
+        {
+          "skip_below": 0.83,
+          "frames_skipped": 346,
+          "frames_skipped_pct": 57.7,
+          "empty_skipped": 292,
+          "animals_missed": 53,
+          "animals_missed_pct": 19.6
+        },
+        {
+          "skip_below": 0.84,
+          "frames_skipped": 353,
+          "frames_skipped_pct": 58.8,
+          "empty_skipped": 294,
+          "animals_missed": 58,
+          "animals_missed_pct": 21.4
+        },
+        {
+          "skip_below": 0.85,
+          "frames_skipped": 356,
+          "frames_skipped_pct": 59.3,
+          "empty_skipped": 297,
+          "animals_missed": 58,
+          "animals_missed_pct": 21.4
+        },
+        {
+          "skip_below": 0.86,
+          "frames_skipped": 357,
+          "frames_skipped_pct": 59.5,
+          "empty_skipped": 297,
+          "animals_missed": 59,
+          "animals_missed_pct": 21.8
+        },
+        {
+          "skip_below": 0.87,
+          "frames_skipped": 365,
+          "frames_skipped_pct": 60.8,
+          "empty_skipped": 301,
+          "animals_missed": 63,
+          "animals_missed_pct": 23.2
+        },
+        {
+          "skip_below": 0.88,
+          "frames_skipped": 371,
+          "frames_skipped_pct": 61.8,
+          "empty_skipped": 303,
+          "animals_missed": 67,
+          "animals_missed_pct": 24.7
+        },
+        {
+          "skip_below": 0.89,
+          "frames_skipped": 376,
+          "frames_skipped_pct": 62.7,
+          "empty_skipped": 304,
+          "animals_missed": 71,
+          "animals_missed_pct": 26.2
+        },
+        {
+          "skip_below": 0.9,
+          "frames_skipped": 381,
+          "frames_skipped_pct": 63.5,
+          "empty_skipped": 306,
+          "animals_missed": 74,
+          "animals_missed_pct": 27.3
+        },
+        {
+          "skip_below": 0.91,
+          "frames_skipped": 383,
+          "frames_skipped_pct": 63.8,
+          "empty_skipped": 306,
+          "animals_missed": 76,
+          "animals_missed_pct": 28.0
+        },
+        {
+          "skip_below": 0.92,
+          "frames_skipped": 395,
+          "frames_skipped_pct": 65.8,
+          "empty_skipped": 307,
+          "animals_missed": 87,
+          "animals_missed_pct": 32.1
+        },
+        {
+          "skip_below": 0.93,
+          "frames_skipped": 408,
+          "frames_skipped_pct": 68.0,
+          "empty_skipped": 307,
+          "animals_missed": 100,
+          "animals_missed_pct": 36.9
+        },
+        {
+          "skip_below": 0.94,
+          "frames_skipped": 426,
+          "frames_skipped_pct": 71.0,
+          "empty_skipped": 307,
+          "animals_missed": 118,
+          "animals_missed_pct": 43.5
+        },
+        {
+          "skip_below": 0.95,
+          "frames_skipped": 463,
+          "frames_skipped_pct": 77.2,
+          "empty_skipped": 307,
+          "animals_missed": 155,
+          "animals_missed_pct": 57.2
+        },
+        {
+          "skip_below": 0.96,
+          "frames_skipped": 532,
+          "frames_skipped_pct": 88.7,
+          "empty_skipped": 307,
+          "animals_missed": 224,
+          "animals_missed_pct": 82.7
+        },
+        {
+          "skip_below": 0.97,
+          "frames_skipped": 569,
+          "frames_skipped_pct": 94.8,
+          "empty_skipped": 307,
+          "animals_missed": 261,
+          "animals_missed_pct": 96.3
+        },
+        {
+          "skip_below": 0.98,
+          "frames_skipped": 578,
+          "frames_skipped_pct": 96.3,
+          "empty_skipped": 307,
+          "animals_missed": 270,
+          "animals_missed_pct": 99.6
+        },
+        {
+          "skip_below": 0.99,
+          "frames_skipped": 578,
+          "frames_skipped_pct": 96.3,
+          "empty_skipped": 307,
+          "animals_missed": 270,
+          "animals_missed_pct": 99.6
+        },
+        {
+          "skip_below": 1.0,
+          "frames_skipped": 578,
+          "frames_skipped_pct": 96.3,
+          "empty_skipped": 307,
+          "animals_missed": 270,
+          "animals_missed_pct": 99.6
+        }
+      ],
+      "audit": {
+        "scope": "only frames a policy got wrong by CCT labels were checked by eye; the rest of the set was not audited",
+        "false_alerts_checked": 4,
+        "false_alerts_with_person": 3,
+        "false_alerts_not_checked": 0,
+        "false_alert_notes": [
+          {
+            "file_name": "58fa5eb1-23d2-11e8-a6a3-ec086b02610b.jpg",
+            "note": "v2 burst alert came from sibling frame 58fd7e21 (P(person/vehicle) 0.77): a deer under a street lamp, no person or vehicle visible"
+          }
+        ],
+        "missed_animals_visible": {
+          "no": 4,
+          "faint": 4,
+          "yes": 1
+        },
+        "missed_animals_later_burst_frame": 6,
+        "missed_vehicles": [
+          {
+            "file_name": "59136522-23d2-11e8-a6a3-ec086b02610b.jpg",
+            "escalate": 0.1067,
+            "note": "dark dawn frame; no vehicle visible to the eye"
+          },
+          {
+            "file_name": "59e103e7-23d2-11e8-a6a3-ec086b02610b.jpg",
+            "escalate": 0.4545,
+            "note": "motion-blurred dark shape under the bridge deck"
+          }
+        ]
       },
-      "vehicles_caught": 2,
-      "false_alerts": 0,
-      "false_alerts_on_empty": 0,
-      "presence_auc_animal_vs_empty": null,
-      "mean_present_animal": null,
-      "mean_present_empty": null,
-      "latency_ms_p50": 459.2,
-      "latency_ms_p90": 463.4
+      "missed": [
+        {
+          "file_name": "58678c61-23d2-11e8-a6a3-ec086b02610b.jpg",
+          "label": "coyote",
+          "lighting": "day",
+          "location": "107",
+          "present": 0.213,
+          "frame_num": "2",
+          "seq_num_frames": "3",
+          "burst_max_present": 0.2561
+        },
+        {
+          "file_name": "59260d4b-23d2-11e8-a6a3-ec086b02610b.jpg",
+          "label": "bird",
+          "lighting": "day",
+          "location": "87",
+          "present": 0.239,
+          "frame_num": "3",
+          "seq_num_frames": "3",
+          "burst_max_present": 0.2979
+        },
+        {
+          "file_name": "59af95eb-23d2-11e8-a6a3-ec086b02610b.jpg",
+          "label": "bird",
+          "lighting": "day",
+          "location": "3",
+          "present": 0.3035,
+          "frame_num": "3",
+          "seq_num_frames": "3",
+          "burst_max_present": 0.3532
+        },
+        {
+          "file_name": "5949d0bd-23d2-11e8-a6a3-ec086b02610b.jpg",
+          "label": "deer",
+          "lighting": "night_ir",
+          "location": "117",
+          "present": 0.3784,
+          "frame_num": "1",
+          "seq_num_frames": "3",
+          "burst_max_present": 0.3784
+        },
+        {
+          "file_name": "59a179a8-23d2-11e8-a6a3-ec086b02610b.jpg",
+          "label": "rabbit",
+          "lighting": "night_ir",
+          "location": "61",
+          "present": 0.2021,
+          "frame_num": "3",
+          "seq_num_frames": "3",
+          "burst_max_present": 0.2327
+        },
+        {
+          "file_name": "5a1e5151-23d2-11e8-a6a3-ec086b02610b.jpg",
+          "label": "rabbit",
+          "lighting": "night_ir",
+          "location": "5",
+          "present": 0.3527,
+          "frame_num": "2",
+          "seq_num_frames": "3",
+          "burst_max_present": 0.3547
+        },
+        {
+          "file_name": "5957c4f6-23d2-11e8-a6a3-ec086b02610b.jpg",
+          "label": "bird",
+          "lighting": "day",
+          "location": "70",
+          "present": 0.3947,
+          "frame_num": "1",
+          "seq_num_frames": "1",
+          "burst_max_present": 0.3947
+        },
+        {
+          "file_name": "58cca688-23d2-11e8-a6a3-ec086b02610b.jpg",
+          "label": "bird",
+          "lighting": "day",
+          "location": "94",
+          "present": 0.3086,
+          "frame_num": "2",
+          "seq_num_frames": "3",
+          "burst_max_present": 0.3467
+        },
+        {
+          "file_name": "597fecee-23d2-11e8-a6a3-ec086b02610b.jpg",
+          "label": "coyote",
+          "lighting": "night_ir",
+          "location": "23",
+          "present": 0.3294,
+          "frame_num": "1",
+          "seq_num_frames": "1",
+          "burst_max_present": 0.3294
+        }
+      ]
     }
   },
-  "vehicles": {
-    "caught": 57,
-    "n": 59,
-    "caught_pct": 96.6
+  "difficulty": {
+    "n_frames": 600,
+    "called_hard": 504,
+    "called_hard_pct": 84.0,
+    "p_hard_auc_night_vs_day": 0.672,
+    "animal_frames_called_hard": 192,
+    "n_animal": 271
   },
-  "decider_latency_ms_all_calls": {
-    "n": 640,
-    "p50": 495.2,
-    "p90": 647.5,
-    "note": "wall clock around one HTTP call with the 3 production questions"
+  "decider_latency_ms": {
+    "n": 1119,
+    "p50": 471.8,
+    "p90": 580.3,
+    "note": "wall clock around one HTTP call with the 3 production questions, all held-out burst and vehicle frames"
   },
-  "sweep": [
-    {
-      "skip_below": 0.0,
-      "frames_skipped": 0,
-      "frames_skipped_pct": 0.0,
-      "empty_skipped": 0,
-      "animals_missed": 0,
-      "animals_missed_pct": 0.0
-    },
-    {
-      "skip_below": 0.01,
-      "frames_skipped": 0,
-      "frames_skipped_pct": 0.0,
-      "empty_skipped": 0,
-      "animals_missed": 0,
-      "animals_missed_pct": 0.0
-    },
-    {
-      "skip_below": 0.02,
-      "frames_skipped": 0,
-      "frames_skipped_pct": 0.0,
-      "empty_skipped": 0,
-      "animals_missed": 0,
-      "animals_missed_pct": 0.0
-    },
-    {
-      "skip_below": 0.03,
-      "frames_skipped": 0,
-      "frames_skipped_pct": 0.0,
-      "empty_skipped": 0,
-      "animals_missed": 0,
-      "animals_missed_pct": 0.0
-    },
-    {
-      "skip_below": 0.04,
-      "frames_skipped": 0,
-      "frames_skipped_pct": 0.0,
-      "empty_skipped": 0,
-      "animals_missed": 0,
-      "animals_missed_pct": 0.0
-    },
-    {
-      "skip_below": 0.05,
-      "frames_skipped": 0,
-      "frames_skipped_pct": 0.0,
-      "empty_skipped": 0,
-      "animals_missed": 0,
-      "animals_missed_pct": 0.0
-    },
-    {
-      "skip_below": 0.06,
-      "frames_skipped": 0,
-      "frames_skipped_pct": 0.0,
-      "empty_skipped": 0,
-      "animals_missed": 0,
-      "animals_missed_pct": 0.0
-    },
-    {
-      "skip_below": 0.07,
-      "frames_skipped": 0,
-      "frames_skipped_pct": 0.0,
-      "empty_skipped": 0,
-      "animals_missed": 0,
-      "animals_missed_pct": 0.0
-    },
-    {
-      "skip_below": 0.08,
-      "frames_skipped": 0,
-      "frames_skipped_pct": 0.0,
-      "empty_skipped": 0,
-      "animals_missed": 0,
-      "animals_missed_pct": 0.0
-    },
-    {
-      "skip_below": 0.09,
-      "frames_skipped": 0,
-      "frames_skipped_pct": 0.0,
-      "empty_skipped": 0,
-      "animals_missed": 0,
-      "animals_missed_pct": 0.0
-    },
-    {
-      "skip_below": 0.1,
-      "frames_skipped": 0,
-      "frames_skipped_pct": 0.0,
-      "empty_skipped": 0,
-      "animals_missed": 0,
-      "animals_missed_pct": 0.0
-    },
-    {
-      "skip_below": 0.11,
-      "frames_skipped": 0,
-      "frames_skipped_pct": 0.0,
-      "empty_skipped": 0,
-      "animals_missed": 0,
-      "animals_missed_pct": 0.0
-    },
-    {
-      "skip_below": 0.12,
-      "frames_skipped": 0,
-      "frames_skipped_pct": 0.0,
-      "empty_skipped": 0,
-      "animals_missed": 0,
-      "animals_missed_pct": 0.0
-    },
-    {
-      "skip_below": 0.13,
-      "frames_skipped": 0,
-      "frames_skipped_pct": 0.0,
-      "empty_skipped": 0,
-      "animals_missed": 0,
-      "animals_missed_pct": 0.0
-    },
-    {
-      "skip_below": 0.14,
-      "frames_skipped": 0,
-      "frames_skipped_pct": 0.0,
-      "empty_skipped": 0,
-      "animals_missed": 0,
-      "animals_missed_pct": 0.0
-    },
-    {
-      "skip_below": 0.15,
-      "frames_skipped": 1,
-      "frames_skipped_pct": 0.2,
-      "empty_skipped": 1,
-      "animals_missed": 0,
-      "animals_missed_pct": 0.0
-    },
-    {
-      "skip_below": 0.16,
-      "frames_skipped": 5,
-      "frames_skipped_pct": 0.8,
-      "empty_skipped": 5,
-      "animals_missed": 0,
-      "animals_missed_pct": 0.0
-    },
-    {
-      "skip_below": 0.17,
-      "frames_skipped": 9,
-      "frames_skipped_pct": 1.5,
-      "empty_skipped": 9,
-      "animals_missed": 0,
-      "animals_missed_pct": 0.0
-    },
-    {
-      "skip_below": 0.18,
-      "frames_skipped": 11,
-      "frames_skipped_pct": 1.8,
-      "empty_skipped": 11,
-      "animals_missed": 0,
-      "animals_missed_pct": 0.0
-    },
-    {
-      "skip_below": 0.19,
-      "frames_skipped": 13,
-      "frames_skipped_pct": 2.2,
-      "empty_skipped": 13,
-      "animals_missed": 0,
-      "animals_missed_pct": 0.0
-    },
-    {
-      "skip_below": 0.2,
-      "frames_skipped": 16,
-      "frames_skipped_pct": 2.7,
-      "empty_skipped": 16,
-      "animals_missed": 0,
-      "animals_missed_pct": 0.0
-    },
-    {
-      "skip_below": 0.21,
-      "frames_skipped": 25,
-      "frames_skipped_pct": 4.2,
-      "empty_skipped": 24,
-      "animals_missed": 1,
-      "animals_missed_pct": 0.4
-    },
-    {
-      "skip_below": 0.22,
-      "frames_skipped": 28,
-      "frames_skipped_pct": 4.7,
-      "empty_skipped": 26,
-      "animals_missed": 2,
-      "animals_missed_pct": 0.7
-    },
-    {
-      "skip_below": 0.23,
-      "frames_skipped": 36,
-      "frames_skipped_pct": 6.0,
-      "empty_skipped": 34,
-      "animals_missed": 2,
-      "animals_missed_pct": 0.7
-    },
-    {
-      "skip_below": 0.24,
-      "frames_skipped": 44,
-      "frames_skipped_pct": 7.3,
-      "empty_skipped": 41,
-      "animals_missed": 3,
-      "animals_missed_pct": 1.1
-    },
-    {
-      "skip_below": 0.25,
-      "frames_skipped": 46,
-      "frames_skipped_pct": 7.7,
-      "empty_skipped": 42,
-      "animals_missed": 4,
-      "animals_missed_pct": 1.5
-    },
-    {
-      "skip_below": 0.26,
-      "frames_skipped": 58,
-      "frames_skipped_pct": 9.7,
-      "empty_skipped": 54,
-      "animals_missed": 4,
-      "animals_missed_pct": 1.5
-    },
-    {
-      "skip_below": 0.27,
-      "frames_skipped": 65,
-      "frames_skipped_pct": 10.8,
-      "empty_skipped": 61,
-      "animals_missed": 4,
-      "animals_missed_pct": 1.5
-    },
-    {
-      "skip_below": 0.28,
-      "frames_skipped": 75,
-      "frames_skipped_pct": 12.5,
-      "empty_skipped": 68,
-      "animals_missed": 7,
-      "animals_missed_pct": 2.6
-    },
-    {
-      "skip_below": 0.29,
-      "frames_skipped": 84,
-      "frames_skipped_pct": 14.0,
-      "empty_skipped": 77,
-      "animals_missed": 7,
-      "animals_missed_pct": 2.6
-    },
-    {
-      "skip_below": 0.3,
-      "frames_skipped": 89,
-      "frames_skipped_pct": 14.8,
-      "empty_skipped": 82,
-      "animals_missed": 7,
-      "animals_missed_pct": 2.6
-    },
-    {
-      "skip_below": 0.31,
-      "frames_skipped": 100,
-      "frames_skipped_pct": 16.7,
-      "empty_skipped": 91,
-      "animals_missed": 9,
-      "animals_missed_pct": 3.3
-    },
-    {
-      "skip_below": 0.32,
-      "frames_skipped": 111,
-      "frames_skipped_pct": 18.5,
-      "empty_skipped": 101,
-      "animals_missed": 10,
-      "animals_missed_pct": 3.7
-    },
-    {
-      "skip_below": 0.33,
-      "frames_skipped": 116,
-      "frames_skipped_pct": 19.3,
-      "empty_skipped": 104,
-      "animals_missed": 12,
-      "animals_missed_pct": 4.4
-    },
-    {
-      "skip_below": 0.34,
-      "frames_skipped": 122,
-      "frames_skipped_pct": 20.3,
-      "empty_skipped": 109,
-      "animals_missed": 13,
-      "animals_missed_pct": 4.8
-    },
-    {
-      "skip_below": 0.35,
-      "frames_skipped": 126,
-      "frames_skipped_pct": 21.0,
-      "empty_skipped": 113,
-      "animals_missed": 13,
-      "animals_missed_pct": 4.8
-    },
-    {
-      "skip_below": 0.36,
-      "frames_skipped": 137,
-      "frames_skipped_pct": 22.8,
-      "empty_skipped": 121,
-      "animals_missed": 16,
-      "animals_missed_pct": 5.9
-    },
-    {
-      "skip_below": 0.37,
-      "frames_skipped": 146,
-      "frames_skipped_pct": 24.3,
-      "empty_skipped": 130,
-      "animals_missed": 16,
-      "animals_missed_pct": 5.9
-    },
-    {
-      "skip_below": 0.38,
-      "frames_skipped": 151,
-      "frames_skipped_pct": 25.2,
-      "empty_skipped": 134,
-      "animals_missed": 17,
-      "animals_missed_pct": 6.3
-    },
-    {
-      "skip_below": 0.39,
-      "frames_skipped": 162,
-      "frames_skipped_pct": 27.0,
-      "empty_skipped": 143,
-      "animals_missed": 19,
-      "animals_missed_pct": 7.0
-    },
-    {
-      "skip_below": 0.4,
-      "frames_skipped": 169,
-      "frames_skipped_pct": 28.2,
-      "empty_skipped": 147,
-      "animals_missed": 22,
-      "animals_missed_pct": 8.1
-    },
-    {
-      "skip_below": 0.41,
-      "frames_skipped": 175,
-      "frames_skipped_pct": 29.2,
-      "empty_skipped": 152,
-      "animals_missed": 23,
-      "animals_missed_pct": 8.5
-    },
-    {
-      "skip_below": 0.42,
-      "frames_skipped": 185,
-      "frames_skipped_pct": 30.8,
-      "empty_skipped": 159,
-      "animals_missed": 26,
-      "animals_missed_pct": 9.6
-    },
-    {
-      "skip_below": 0.43,
-      "frames_skipped": 193,
-      "frames_skipped_pct": 32.2,
-      "empty_skipped": 166,
-      "animals_missed": 27,
-      "animals_missed_pct": 10.0
-    },
-    {
-      "skip_below": 0.44,
-      "frames_skipped": 197,
-      "frames_skipped_pct": 32.8,
-      "empty_skipped": 168,
-      "animals_missed": 29,
-      "animals_missed_pct": 10.7
-    },
-    {
-      "skip_below": 0.45,
-      "frames_skipped": 203,
-      "frames_skipped_pct": 33.8,
-      "empty_skipped": 173,
-      "animals_missed": 30,
-      "animals_missed_pct": 11.1
-    },
-    {
-      "skip_below": 0.46,
-      "frames_skipped": 211,
-      "frames_skipped_pct": 35.2,
-      "empty_skipped": 180,
-      "animals_missed": 31,
-      "animals_missed_pct": 11.4
-    },
-    {
-      "skip_below": 0.47,
-      "frames_skipped": 216,
-      "frames_skipped_pct": 36.0,
-      "empty_skipped": 184,
-      "animals_missed": 32,
-      "animals_missed_pct": 11.8
-    },
-    {
-      "skip_below": 0.48,
-      "frames_skipped": 221,
-      "frames_skipped_pct": 36.8,
-      "empty_skipped": 188,
-      "animals_missed": 33,
-      "animals_missed_pct": 12.2
-    },
-    {
-      "skip_below": 0.49,
-      "frames_skipped": 226,
-      "frames_skipped_pct": 37.7,
-      "empty_skipped": 192,
-      "animals_missed": 34,
-      "animals_missed_pct": 12.5
-    },
-    {
-      "skip_below": 0.5,
-      "frames_skipped": 235,
-      "frames_skipped_pct": 39.2,
-      "empty_skipped": 199,
-      "animals_missed": 36,
-      "animals_missed_pct": 13.3
-    },
-    {
-      "skip_below": 0.51,
-      "frames_skipped": 237,
-      "frames_skipped_pct": 39.5,
-      "empty_skipped": 201,
-      "animals_missed": 36,
-      "animals_missed_pct": 13.3
-    },
-    {
-      "skip_below": 0.52,
-      "frames_skipped": 244,
-      "frames_skipped_pct": 40.7,
-      "empty_skipped": 207,
-      "animals_missed": 37,
-      "animals_missed_pct": 13.7
-    },
-    {
-      "skip_below": 0.53,
-      "frames_skipped": 250,
-      "frames_skipped_pct": 41.7,
-      "empty_skipped": 211,
-      "animals_missed": 39,
-      "animals_missed_pct": 14.4
-    },
-    {
-      "skip_below": 0.54,
-      "frames_skipped": 261,
-      "frames_skipped_pct": 43.5,
-      "empty_skipped": 222,
-      "animals_missed": 39,
-      "animals_missed_pct": 14.4
-    },
-    {
-      "skip_below": 0.55,
-      "frames_skipped": 268,
-      "frames_skipped_pct": 44.7,
-      "empty_skipped": 228,
-      "animals_missed": 40,
-      "animals_missed_pct": 14.8
-    },
-    {
-      "skip_below": 0.56,
-      "frames_skipped": 270,
-      "frames_skipped_pct": 45.0,
-      "empty_skipped": 229,
-      "animals_missed": 41,
-      "animals_missed_pct": 15.1
-    },
-    {
-      "skip_below": 0.57,
-      "frames_skipped": 270,
-      "frames_skipped_pct": 45.0,
-      "empty_skipped": 229,
-      "animals_missed": 41,
-      "animals_missed_pct": 15.1
-    },
-    {
-      "skip_below": 0.58,
-      "frames_skipped": 272,
-      "frames_skipped_pct": 45.3,
-      "empty_skipped": 230,
-      "animals_missed": 42,
-      "animals_missed_pct": 15.5
-    },
-    {
-      "skip_below": 0.59,
-      "frames_skipped": 278,
-      "frames_skipped_pct": 46.3,
-      "empty_skipped": 236,
-      "animals_missed": 42,
-      "animals_missed_pct": 15.5
-    },
-    {
-      "skip_below": 0.6,
-      "frames_skipped": 281,
-      "frames_skipped_pct": 46.8,
-      "empty_skipped": 239,
-      "animals_missed": 42,
-      "animals_missed_pct": 15.5
-    },
-    {
-      "skip_below": 0.61,
-      "frames_skipped": 288,
-      "frames_skipped_pct": 48.0,
-      "empty_skipped": 246,
-      "animals_missed": 42,
-      "animals_missed_pct": 15.5
-    },
-    {
-      "skip_below": 0.62,
-      "frames_skipped": 290,
-      "frames_skipped_pct": 48.3,
-      "empty_skipped": 248,
-      "animals_missed": 42,
-      "animals_missed_pct": 15.5
-    },
-    {
-      "skip_below": 0.63,
-      "frames_skipped": 293,
-      "frames_skipped_pct": 48.8,
-      "empty_skipped": 250,
-      "animals_missed": 43,
-      "animals_missed_pct": 15.9
-    },
-    {
-      "skip_below": 0.64,
-      "frames_skipped": 296,
-      "frames_skipped_pct": 49.3,
-      "empty_skipped": 253,
-      "animals_missed": 43,
-      "animals_missed_pct": 15.9
-    },
-    {
-      "skip_below": 0.65,
-      "frames_skipped": 301,
-      "frames_skipped_pct": 50.2,
-      "empty_skipped": 257,
-      "animals_missed": 44,
-      "animals_missed_pct": 16.2
-    },
-    {
-      "skip_below": 0.66,
-      "frames_skipped": 304,
-      "frames_skipped_pct": 50.7,
-      "empty_skipped": 259,
-      "animals_missed": 45,
-      "animals_missed_pct": 16.6
-    },
-    {
-      "skip_below": 0.67,
-      "frames_skipped": 307,
-      "frames_skipped_pct": 51.2,
-      "empty_skipped": 262,
-      "animals_missed": 45,
-      "animals_missed_pct": 16.6
-    },
-    {
-      "skip_below": 0.68,
-      "frames_skipped": 313,
-      "frames_skipped_pct": 52.2,
-      "empty_skipped": 268,
-      "animals_missed": 45,
-      "animals_missed_pct": 16.6
-    },
-    {
-      "skip_below": 0.69,
-      "frames_skipped": 313,
-      "frames_skipped_pct": 52.2,
-      "empty_skipped": 268,
-      "animals_missed": 45,
-      "animals_missed_pct": 16.6
-    },
-    {
-      "skip_below": 0.7,
-      "frames_skipped": 315,
-      "frames_skipped_pct": 52.5,
-      "empty_skipped": 269,
-      "animals_missed": 46,
-      "animals_missed_pct": 17.0
-    },
-    {
-      "skip_below": 0.71,
-      "frames_skipped": 319,
-      "frames_skipped_pct": 53.2,
-      "empty_skipped": 271,
-      "animals_missed": 48,
-      "animals_missed_pct": 17.7
-    },
-    {
-      "skip_below": 0.72,
-      "frames_skipped": 324,
-      "frames_skipped_pct": 54.0,
-      "empty_skipped": 272,
-      "animals_missed": 52,
-      "animals_missed_pct": 19.2
-    },
-    {
-      "skip_below": 0.73,
-      "frames_skipped": 325,
-      "frames_skipped_pct": 54.2,
-      "empty_skipped": 273,
-      "animals_missed": 52,
-      "animals_missed_pct": 19.2
-    },
-    {
-      "skip_below": 0.74,
-      "frames_skipped": 332,
-      "frames_skipped_pct": 55.3,
-      "empty_skipped": 276,
-      "animals_missed": 56,
-      "animals_missed_pct": 20.7
-    },
-    {
-      "skip_below": 0.75,
-      "frames_skipped": 339,
-      "frames_skipped_pct": 56.5,
-      "empty_skipped": 279,
-      "animals_missed": 60,
-      "animals_missed_pct": 22.1
-    },
-    {
-      "skip_below": 0.76,
-      "frames_skipped": 345,
-      "frames_skipped_pct": 57.5,
-      "empty_skipped": 282,
-      "animals_missed": 62,
-      "animals_missed_pct": 22.9
-    },
-    {
-      "skip_below": 0.77,
-      "frames_skipped": 352,
-      "frames_skipped_pct": 58.7,
-      "empty_skipped": 285,
-      "animals_missed": 66,
-      "animals_missed_pct": 24.4
-    },
-    {
-      "skip_below": 0.78,
-      "frames_skipped": 358,
-      "frames_skipped_pct": 59.7,
-      "empty_skipped": 287,
-      "animals_missed": 70,
-      "animals_missed_pct": 25.8
-    },
-    {
-      "skip_below": 0.79,
-      "frames_skipped": 363,
-      "frames_skipped_pct": 60.5,
-      "empty_skipped": 289,
-      "animals_missed": 73,
-      "animals_missed_pct": 26.9
-    },
-    {
-      "skip_below": 0.8,
-      "frames_skipped": 369,
-      "frames_skipped_pct": 61.5,
-      "empty_skipped": 291,
-      "animals_missed": 77,
-      "animals_missed_pct": 28.4
-    },
-    {
-      "skip_below": 0.81,
-      "frames_skipped": 370,
-      "frames_skipped_pct": 61.7,
-      "empty_skipped": 291,
-      "animals_missed": 78,
-      "animals_missed_pct": 28.8
-    },
-    {
-      "skip_below": 0.82,
-      "frames_skipped": 374,
-      "frames_skipped_pct": 62.3,
-      "empty_skipped": 293,
-      "animals_missed": 80,
-      "animals_missed_pct": 29.5
-    },
-    {
-      "skip_below": 0.83,
-      "frames_skipped": 374,
-      "frames_skipped_pct": 62.3,
-      "empty_skipped": 293,
-      "animals_missed": 80,
-      "animals_missed_pct": 29.5
-    },
-    {
-      "skip_below": 0.84,
-      "frames_skipped": 379,
-      "frames_skipped_pct": 63.2,
-      "empty_skipped": 295,
-      "animals_missed": 83,
-      "animals_missed_pct": 30.6
-    },
-    {
-      "skip_below": 0.85,
-      "frames_skipped": 381,
-      "frames_skipped_pct": 63.5,
-      "empty_skipped": 297,
-      "animals_missed": 83,
-      "animals_missed_pct": 30.6
-    },
-    {
-      "skip_below": 0.86,
-      "frames_skipped": 381,
-      "frames_skipped_pct": 63.5,
-      "empty_skipped": 297,
-      "animals_missed": 83,
-      "animals_missed_pct": 30.6
-    },
-    {
-      "skip_below": 0.87,
-      "frames_skipped": 390,
-      "frames_skipped_pct": 65.0,
-      "empty_skipped": 301,
-      "animals_missed": 88,
-      "animals_missed_pct": 32.5
-    },
-    {
-      "skip_below": 0.88,
-      "frames_skipped": 397,
-      "frames_skipped_pct": 66.2,
-      "empty_skipped": 303,
-      "animals_missed": 93,
-      "animals_missed_pct": 34.3
-    },
-    {
-      "skip_below": 0.89,
-      "frames_skipped": 400,
-      "frames_skipped_pct": 66.7,
-      "empty_skipped": 304,
-      "animals_missed": 95,
-      "animals_missed_pct": 35.1
-    },
-    {
-      "skip_below": 0.9,
-      "frames_skipped": 407,
-      "frames_skipped_pct": 67.8,
-      "empty_skipped": 306,
-      "animals_missed": 100,
-      "animals_missed_pct": 36.9
-    },
-    {
-      "skip_below": 0.91,
-      "frames_skipped": 412,
-      "frames_skipped_pct": 68.7,
-      "empty_skipped": 306,
-      "animals_missed": 105,
-      "animals_missed_pct": 38.7
-    },
-    {
-      "skip_below": 0.92,
-      "frames_skipped": 420,
-      "frames_skipped_pct": 70.0,
-      "empty_skipped": 307,
-      "animals_missed": 112,
-      "animals_missed_pct": 41.3
-    },
-    {
-      "skip_below": 0.93,
-      "frames_skipped": 431,
-      "frames_skipped_pct": 71.8,
-      "empty_skipped": 307,
-      "animals_missed": 123,
-      "animals_missed_pct": 45.4
-    },
-    {
-      "skip_below": 0.94,
-      "frames_skipped": 450,
-      "frames_skipped_pct": 75.0,
-      "empty_skipped": 307,
-      "animals_missed": 142,
-      "animals_missed_pct": 52.4
-    },
-    {
-      "skip_below": 0.95,
-      "frames_skipped": 487,
-      "frames_skipped_pct": 81.2,
-      "empty_skipped": 307,
-      "animals_missed": 179,
-      "animals_missed_pct": 66.1
-    },
-    {
-      "skip_below": 0.96,
-      "frames_skipped": 547,
-      "frames_skipped_pct": 91.2,
-      "empty_skipped": 307,
-      "animals_missed": 239,
-      "animals_missed_pct": 88.2
-    },
-    {
-      "skip_below": 0.97,
-      "frames_skipped": 572,
-      "frames_skipped_pct": 95.3,
-      "empty_skipped": 307,
-      "animals_missed": 264,
-      "animals_missed_pct": 97.4
-    },
-    {
-      "skip_below": 0.98,
-      "frames_skipped": 579,
-      "frames_skipped_pct": 96.5,
-      "empty_skipped": 307,
-      "animals_missed": 271,
-      "animals_missed_pct": 100.0
-    },
-    {
-      "skip_below": 0.99,
-      "frames_skipped": 579,
-      "frames_skipped_pct": 96.5,
-      "empty_skipped": 307,
-      "animals_missed": 271,
-      "animals_missed_pct": 100.0
-    },
-    {
-      "skip_below": 1.0,
-      "frames_skipped": 579,
-      "frames_skipped_pct": 96.5,
-      "empty_skipped": 307,
-      "animals_missed": 271,
-      "animals_missed_pct": 100.0
-    }
-  ],
   "reliability": [
     {
       "bin": "0.0-0.1",
@@ -1372,16 +3994,32 @@
   "cost": {
     "basis": "held-out set, 600 frames, natural empty/animal mix; scaled to 10,000 frames",
     "status": "estimated from published token formula and prices; no Bedrock call has been measured yet",
-    "per_10k_usd": {
-      "nova_lite_every_frame": 1.2024,
-      "nova_pro_every_frame": 16.032,
-      "trailgate": 10.2703,
-      "trailgate_lite_only": 0.9523
+    "nova_lite_every_frame": 1.2024,
+    "nova_pro_every_frame": 16.032,
+    "policies": {
+      "v1": {
+        "routed": 10.2703,
+        "lite_only_variant": 0.9523,
+        "routed_vs_lite_pct": 854.1,
+        "routed_vs_pro_pct": 64.1,
+        "lite_only_vs_lite_pct": 79.2
+      },
+      "v2_frame": {
+        "routed": 5.0959,
+        "lite_only_variant": 0.8942,
+        "routed_vs_lite_pct": 423.8,
+        "routed_vs_pro_pct": 31.8,
+        "lite_only_vs_lite_pct": 74.4
+      },
+      "v2": {
+        "routed": 5.5502,
+        "lite_only_variant": 0.9283,
+        "routed_vs_lite_pct": 461.6,
+        "routed_vs_pro_pct": 34.6,
+        "lite_only_vs_lite_pct": 77.2
+      }
     },
-    "trailgate_vs_lite_pct": 854.1,
-    "trailgate_vs_pro_pct": 64.1,
-    "trailgate_lite_only_vs_lite_pct": 79.2,
-    "trailgate_routing": "skip: $0; small: Nova Lite label; large: Nova Pro label; escalate: Nova Lite alert + Nova Pro label (pipeline default label_escalations=True)",
+    "routing": "skip: $0; small: Nova Lite label; large: Nova Pro label; escalate: Nova Lite alert + Nova Pro label (pipeline default label_escalations=True)",
     "label_call_tokens_typical_frame": {
       "input": 1944,
       "output": 15,
@@ -1432,136 +4070,6 @@
     "decider_machine": "Apple M5, 16 GB, macOS 26.6.2, PyTorch MPS"
   },
   "nova": null,
-  "missed": [
-    {
-      "file_name": "58bd1d22-23d2-11e8-a6a3-ec086b02610b.jpg",
-      "label": "squirrel",
-      "lighting": "day",
-      "location": "78",
-      "present": 0.3233,
-      "difficulty": "hard"
-    },
-    {
-      "file_name": "597387f9-23d2-11e8-a6a3-ec086b02610b.jpg",
-      "label": "fox",
-      "lighting": "night_ir",
-      "location": "55",
-      "present": 0.2716,
-      "difficulty": "hard"
-    },
-    {
-      "file_name": "58678c61-23d2-11e8-a6a3-ec086b02610b.jpg",
-      "label": "coyote",
-      "lighting": "day",
-      "location": "107",
-      "present": 0.213,
-      "difficulty": "hard"
-    },
-    {
-      "file_name": "59260d4b-23d2-11e8-a6a3-ec086b02610b.jpg",
-      "label": "bird",
-      "lighting": "day",
-      "location": "87",
-      "present": 0.239,
-      "difficulty": "hard"
-    },
-    {
-      "file_name": "59af95eb-23d2-11e8-a6a3-ec086b02610b.jpg",
-      "label": "bird",
-      "lighting": "day",
-      "location": "3",
-      "present": 0.3035,
-      "difficulty": "hard"
-    },
-    {
-      "file_name": "587d429b-23d2-11e8-a6a3-ec086b02610b.jpg",
-      "label": "squirrel",
-      "lighting": "night_ir",
-      "location": "78",
-      "present": 0.3367,
-      "difficulty": "hard"
-    },
-    {
-      "file_name": "58d92faa-23d2-11e8-a6a3-ec086b02610b.jpg",
-      "label": "bobcat",
-      "lighting": "day",
-      "location": "95",
-      "present": 0.3562,
-      "difficulty": "hard"
-    },
-    {
-      "file_name": "58732f4c-23d2-11e8-a6a3-ec086b02610b.jpg",
-      "label": "deer",
-      "lighting": "night_ir",
-      "location": "117",
-      "present": 0.2797,
-      "difficulty": "hard"
-    },
-    {
-      "file_name": "58c66358-23d2-11e8-a6a3-ec086b02610b.jpg",
-      "label": "rabbit",
-      "lighting": "day",
-      "location": "115",
-      "present": 0.2437,
-      "difficulty": "clear"
-    },
-    {
-      "file_name": "59a179a8-23d2-11e8-a6a3-ec086b02610b.jpg",
-      "label": "rabbit",
-      "lighting": "night_ir",
-      "location": "61",
-      "present": 0.2021,
-      "difficulty": "hard"
-    },
-    {
-      "file_name": "58b2f0c0-23d2-11e8-a6a3-ec086b02610b.jpg",
-      "label": "cat",
-      "lighting": "night_ir",
-      "location": "78",
-      "present": 0.3541,
-      "difficulty": "hard"
-    },
-    {
-      "file_name": "5a1e5151-23d2-11e8-a6a3-ec086b02610b.jpg",
-      "label": "rabbit",
-      "lighting": "night_ir",
-      "location": "5",
-      "present": 0.3527,
-      "difficulty": "hard"
-    },
-    {
-      "file_name": "58cca688-23d2-11e8-a6a3-ec086b02610b.jpg",
-      "label": "bird",
-      "lighting": "day",
-      "location": "94",
-      "present": 0.3086,
-      "difficulty": "hard"
-    },
-    {
-      "file_name": "5a0e37f2-23d2-11e8-a6a3-ec086b02610b.jpg",
-      "label": "coyote",
-      "lighting": "day",
-      "location": "46",
-      "present": 0.3126,
-      "difficulty": "hard"
-    },
-    {
-      "file_name": "58ec557f-23d2-11e8-a6a3-ec086b02610b.jpg",
-      "label": "deer",
-      "lighting": "night_ir",
-      "location": "84",
-      "present": 0.2772,
-      "difficulty": "clear"
-    },
-    {
-      "file_name": "597fecee-23d2-11e8-a6a3-ec086b02610b.jpg",
-      "label": "coyote",
-      "lighting": "night_ir",
-      "location": "23",
-      "present": 0.3294,
-      "difficulty": "hard"
-    }
-  ],
   "dataset": {
     "source": "caltech_images_20210113.json",
     "n_images": 243100,
@@ -1589,64 +4097,273 @@
     "one_miss_threshold": 0.44,
     "neg_below_one_miss": 0.5625
   },
-  "visual_audit": {
-    "scope": "only frames the router got wrong by CCT labels were checked by eye; the rest of the set was not audited",
-    "false_alerts_checked": 3,
-    "false_alerts_with_person": 3,
-    "missed_animals_visible": {
-      "no": 6,
-      "faint": 9,
-      "yes": 1
-    },
-    "missed_vehicles_visible": {
-      "no": 1,
-      "faint": 1
-    },
-    "missed_animals_later_burst_frame": 13,
-    "missed_vehicles": [
-      {
-        "file_name": "59136522-23d2-11e8-a6a3-ec086b02610b.jpg",
-        "escalate": 0.1067,
-        "tier": "large",
-        "note": "dark dawn frame; no vehicle visible to the eye"
-      },
-      {
-        "file_name": "59e103e7-23d2-11e8-a6a3-ec086b02610b.jpg",
-        "escalate": 0.4545,
-        "tier": "large",
-        "note": "motion-blurred dark shape under the bridge deck"
-      }
-    ]
-  },
   "batching_check": {
     "n_frames": 80,
     "present_max_abs_diff": 0.0041,
     "escalate_max_abs_diff": 0.0034,
-    "difficulty_flips": 0,
-    "note": "same wording asked in a 9-question batch (tuning) and in the 3-question production call"
+    "difficulty_flips": 0
   },
-  "code_check_skips": [],
-  "label_noise_candidates": {
-    "empty_with_high_escalate": [
+  "multi_image": {
+    "n_bursts": 29,
+    "n_animal_bursts": 28,
+    "n_empty_bursts": 1,
+    "auc_multi": 0.8571,
+    "auc_max": 0.8929,
+    "mean_abs_diff": 0.0269,
+    "agree_at_skip": 29,
+    "animal_below_multi": 0,
+    "animal_below_max": 0,
+    "empty_below_multi": 0,
+    "empty_below_max": 0,
+    "latency_multi_p50": 620.9,
+    "latency_frames_p50": 1472.7,
+    "skip_below": 0.41,
+    "state": "Frames from one burst of a wildlife camera trap, taken seconds apart.",
+    "question": {
+      "present": {
+        "type": "noul",
+        "instructions": "Is there an animal anywhere in these photos, even partly hidden or at the edge?",
+        "criteria": {
+          "true": "an animal or part of one is visible",
+          "false": "only vegetation, ground, sky, or camera artefacts"
+        }
+      }
+    },
+    "rows": [
       {
-        "file_name": "58ce4099-23d2-11e8-a6a3-ec086b02610b.jpg",
-        "lighting": "day",
-        "present": 0.7607,
-        "escalate": 0.9318
+        "seq_id": "6f147428-5567-11e8-8314-dca9047ef277",
+        "label": "bird",
+        "multi": 0.9465,
+        "max": 0.9561,
+        "wall_latency_ms": 2670.2,
+        "frames_latency_ms": 4845.7
       },
       {
-        "file_name": "59adfc5c-23d2-11e8-a6a3-ec086b02610b.jpg",
-        "lighting": "day",
-        "present": 0.7837,
-        "escalate": 0.918
+        "seq_id": "7013245c-5567-11e8-b539-dca9047ef277",
+        "label": "rabbit",
+        "multi": 0.9458,
+        "max": 0.953,
+        "wall_latency_ms": 631.2,
+        "frames_latency_ms": 1396.5
       },
       {
-        "file_name": "596bd84d-23d2-11e8-a6a3-ec086b02610b.jpg",
-        "lighting": "day",
-        "present": 0.6286,
-        "escalate": 0.7139
+        "seq_id": "701579bd-5567-11e8-aef2-dca9047ef277",
+        "label": "skunk",
+        "multi": 0.9422,
+        "max": 0.9561,
+        "wall_latency_ms": 621.5,
+        "frames_latency_ms": 1472.7
+      },
+      {
+        "seq_id": "6f142451-5567-11e8-8176-dca9047ef277",
+        "label": "bird",
+        "multi": 0.9468,
+        "max": 0.9509,
+        "wall_latency_ms": 620.1,
+        "frames_latency_ms": 1504.7
+      },
+      {
+        "seq_id": "6f1e20cf-5567-11e8-891e-dca9047ef277",
+        "label": "rabbit",
+        "multi": 0.9293,
+        "max": 0.9011,
+        "wall_latency_ms": 628.2,
+        "frames_latency_ms": 1483.9
+      },
+      {
+        "seq_id": "701a1df3-5567-11e8-88b4-dca9047ef277",
+        "label": "fox",
+        "multi": 0.9524,
+        "max": 0.9544,
+        "wall_latency_ms": 686.1,
+        "frames_latency_ms": 1060.3
+      },
+      {
+        "seq_id": "6f1ee71e-5567-11e8-b2bc-dca9047ef277",
+        "label": "raccoon",
+        "multi": 0.9425,
+        "max": 0.9471,
+        "wall_latency_ms": 618.4,
+        "frames_latency_ms": 1533.7
+      },
+      {
+        "seq_id": "701587f5-5567-11e8-8f7f-dca9047ef277",
+        "label": "bird",
+        "multi": 0.6427,
+        "max": 0.636,
+        "wall_latency_ms": 624.8,
+        "frames_latency_ms": 1463.4
+      },
+      {
+        "seq_id": "6f1e7a23-5567-11e8-8598-dca9047ef277",
+        "label": "raccoon",
+        "multi": 0.6901,
+        "max": 0.6433,
+        "wall_latency_ms": 479.1,
+        "frames_latency_ms": 964.0999999999999
+      },
+      {
+        "seq_id": "6f15fba6-5567-11e8-819f-dca9047ef277",
+        "label": "bobcat",
+        "multi": 0.8709,
+        "max": 0.8785,
+        "wall_latency_ms": 623.1,
+        "frames_latency_ms": 1376.1
+      },
+      {
+        "seq_id": "70112a94-5567-11e8-946f-dca9047ef277",
+        "label": "bird",
+        "multi": 0.8979,
+        "max": 0.892,
+        "wall_latency_ms": 625.4,
+        "frames_latency_ms": 1403.2
+      },
+      {
+        "seq_id": "6f158733-5567-11e8-b1bb-dca9047ef277",
+        "label": "opossum",
+        "multi": 0.9438,
+        "max": 0.9307,
+        "wall_latency_ms": 617.5,
+        "frames_latency_ms": 1422.4
+      },
+      {
+        "seq_id": "6f1ea8d1-5567-11e8-9e88-dca9047ef277",
+        "label": "raccoon",
+        "multi": 0.9373,
+        "max": 0.9376,
+        "wall_latency_ms": 619.9,
+        "frames_latency_ms": 1753.3
+      },
+      {
+        "seq_id": "6f1d7778-5567-11e8-8c8e-dca9047ef277",
+        "label": "raccoon",
+        "multi": 0.9463,
+        "max": 0.9595,
+        "wall_latency_ms": 618.6,
+        "frames_latency_ms": 1402.0
+      },
+      {
+        "seq_id": "6f13f9a1-5567-11e8-a762-dca9047ef277",
+        "label": "bird",
+        "multi": 0.9363,
+        "max": 0.9497,
+        "wall_latency_ms": 647.6,
+        "frames_latency_ms": 1424.8000000000002
+      },
+      {
+        "seq_id": "6f1e788a-5567-11e8-94a6-dca9047ef277",
+        "label": "squirrel",
+        "multi": 0.8426,
+        "max": 0.9055,
+        "wall_latency_ms": 634.0,
+        "frames_latency_ms": 1446.0
+      },
+      {
+        "seq_id": "6f165e1e-5567-11e8-94c4-dca9047ef277",
+        "label": "bobcat",
+        "multi": 0.9357,
+        "max": 0.9564,
+        "wall_latency_ms": 623.5,
+        "frames_latency_ms": 1451.1
+      },
+      {
+        "seq_id": "6f14fd28-5567-11e8-b60a-dca9047ef277",
+        "label": "opossum",
+        "multi": 0.6636,
+        "max": 0.5632,
+        "wall_latency_ms": 497.3,
+        "frames_latency_ms": 1096.0
+      },
+      {
+        "seq_id": "701a3d82-5567-11e8-9758-dca9047ef277",
+        "label": "bird",
+        "multi": 0.7982,
+        "max": 0.7425,
+        "wall_latency_ms": 622.2,
+        "frames_latency_ms": 1497.3
+      },
+      {
+        "seq_id": "6f0a6dae-5567-11e8-8000-dca9047ef277",
+        "label": "cat",
+        "multi": 0.5017,
+        "max": 0.4174,
+        "wall_latency_ms": 618.3,
+        "frames_latency_ms": 1929.4
+      },
+      {
+        "seq_id": "701837d9-5567-11e8-95c3-dca9047ef277",
+        "label": "deer",
+        "multi": 0.9734,
+        "max": 0.9784,
+        "wall_latency_ms": 620.4,
+        "frames_latency_ms": 1511.5
+      },
+      {
+        "seq_id": "6f150047-5567-11e8-a9d0-dca9047ef277",
+        "label": "empty",
+        "multi": 0.6693,
+        "max": 0.5943,
+        "wall_latency_ms": 616.8,
+        "frames_latency_ms": 1724.0
+      },
+      {
+        "seq_id": "70112d97-5567-11e8-964e-dca9047ef277",
+        "label": "skunk",
+        "multi": 0.9388,
+        "max": 0.9572,
+        "wall_latency_ms": 618.6,
+        "frames_latency_ms": 1527.3
+      },
+      {
+        "seq_id": "6f136814-5567-11e8-be9e-dca9047ef277",
+        "label": "rabbit",
+        "multi": 0.5641,
+        "max": 0.4609,
+        "wall_latency_ms": 620.9,
+        "frames_latency_ms": 1793.8
+      },
+      {
+        "seq_id": "6f141551-5567-11e8-bde9-dca9047ef277",
+        "label": "dog",
+        "multi": 0.9461,
+        "max": 0.9542,
+        "wall_latency_ms": 621.9,
+        "frames_latency_ms": 1556.3
+      },
+      {
+        "seq_id": "6f159223-5567-11e8-acc7-dca9047ef277",
+        "label": "opossum",
+        "multi": 0.8922,
+        "max": 0.8539,
+        "wall_latency_ms": 616.2,
+        "frames_latency_ms": 1553.8000000000002
+      },
+      {
+        "seq_id": "6f14092b-5567-11e8-b72c-dca9047ef277",
+        "label": "dog",
+        "multi": 0.7709,
+        "max": 0.758,
+        "wall_latency_ms": 620.1,
+        "frames_latency_ms": 1398.7
+      },
+      {
+        "seq_id": "6f1d1e4a-5567-11e8-a844-dca9047ef277",
+        "label": "opossum",
+        "multi": 0.9395,
+        "max": 0.9467,
+        "wall_latency_ms": 842.2,
+        "frames_latency_ms": 1904.2
+      },
+      {
+        "seq_id": "6f1e2cb8-5567-11e8-bdff-dca9047ef277",
+        "label": "raccoon",
+        "multi": 0.9479,
+        "max": 0.96,
+        "wall_latency_ms": 620.9,
+        "frames_latency_ms": 1384.4
       }
     ],
-    "empty_with_high_present": []
-  }
+    "adopted": "no: per-frame calls with max over the burst are kept"
+  },
+  "code_check_skips": []
 }

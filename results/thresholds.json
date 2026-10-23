@@ -1,12 +1,29 @@
 {
-  "skip_below": 0.37,
-  "small_above": 0.62,
+  "skip_below": 0.41,
+  "small_above": 0.72,
   "escalate_above": 0.54,
+  "use_difficulty": false,
+  "burst_aware": true,
   "chosen_wording": "p_criteria",
   "chosen_escalate_wording": "e_criteria",
-  "method": "Tuning set only. Wording: highest AUC (escalation ties broken by the widest gap between classes). skip_below: highest 0.01 grid value with zero tuning animals scoring below it (miss budget 0; lowest animal score 0.376). small_above: midpoint of the gap between the highest-scoring empty frame Decider called clear (0.347) and the lowest-scoring clear animal frame above it (0.888). escalate_above: midpoint of the gap between the highest non-person/vehicle frame (0.332) and the lowest person/vehicle frame (0.741), labels audited by eye where CCT marks people as empty.",
+  "method": "Tuning set only (80 frames, 80 bursts, every burst frame asked with the production call). Policy: escalate if P(person/vehicle) >= escalate_above in any frame of the burst; skip only if max P(animal) over the burst < skip_below; small (Nova Lite) if the frame's P(animal) >= small_above; otherwise large (Nova Pro, Decider unsure). Difficulty is still asked but not used. skip_below: highest 0.01 step at which no tuning animal burst has max P(animal) below it (lowest animal-burst max 0.417; the per-frame rule gives 0.37). small_above: lowest 0.01 step from which tuning frames at or above every higher step are at least 95% animal (the midpoint-of-gap rule would give 0.77). escalate_above: unchanged from v1.",
   "n_tune": 80,
-  "n_tune_animal": 43,
-  "n_tune_empty": 32,
-  "n_tune_person_or_vehicle": 5
+  "n_tune_bursts": 80,
+  "n_tune_burst_frames": 137,
+  "n_tune_animal_bursts": 43,
+  "n_tune_empty_bursts": 32,
+  "tune_empty_bursts_skipped": 17,
+  "v1": {
+    "skip_below": 0.37,
+    "small_above": 0.62,
+    "escalate_above": 0.54,
+    "chosen_wording": "p_criteria",
+    "chosen_escalate_wording": "e_criteria",
+    "method": "Tuning set only. Wording: highest AUC (escalation ties broken by the widest gap between classes). skip_below: highest 0.01 grid value with zero tuning animals scoring below it (miss budget 0; lowest animal score 0.376). small_above: midpoint of the gap between the highest-scoring empty frame Decider called clear (0.347) and the lowest-scoring clear animal frame above it (0.888). escalate_above: midpoint of the gap between the highest non-person/vehicle frame (0.332) and the lowest person/vehicle frame (0.741), labels audited by eye where CCT marks people as empty.",
+    "n_tune": 80,
+    "n_tune_animal": 43,
+    "n_tune_empty": 32,
+    "n_tune_person_or_vehicle": 5,
+    "use_difficulty": true
+  }
 }
