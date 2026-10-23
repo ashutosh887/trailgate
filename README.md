@@ -141,7 +141,7 @@ router = PresenceRouter(
 agent = Agent(tools=[describe_image], interventions=[router])
 ```
 
-The handler sets `on_error = "proceed"`. If Decider is down, the tool runs with the larger model, so a broken router costs money but never drops an image. [`examples/parcel_photos.py`](examples/parcel_photos.py) is a second agent built on it. The [pattern README](patterns/presence_router/README.md) covers setting thresholds from about 50 of your own labelled images, burst routing and limits.
+The handler fails open. If Decider errors, it returns `Transform` to the large tier and records the frame with a `decider_error`, and `on_error = "proceed"` covers anything else, so a broken router costs money but never drops an image. [`examples/parcel_photos.py`](examples/parcel_photos.py) is a second agent built on it. The [pattern README](patterns/presence_router/README.md) covers setting thresholds from about 50 of your own labelled images, burst routing and limits.
 
 ## Limits
 
