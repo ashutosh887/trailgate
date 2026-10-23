@@ -9,3 +9,4 @@ data/images/
 data/caltech_images_*.json
 data/*.zip
 outbox/
+.claude/
