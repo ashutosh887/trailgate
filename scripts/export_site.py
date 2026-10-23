@@ -98,9 +98,10 @@ def export_reel(reel: dict) -> tuple[dict, set[str], set[str]]:
     """One card as the server would stream it in replay mode at pace 1.0, plus the frames it needs."""
     frames, cache, source = server._resolve_reel(reel["id"], "replay")
     rows = []
+    alerted: set[str] = set()
     for meta in frames:
         result = server.replay_result(meta["file_name"], cache)
-        row = server._enrich(result, meta, source)
+        row = server._enrich(result, meta, source, alerted)
         row["delay_s"] = round(server._replay_delay(result, 1.0), 4)
         rows.append(row)
     digest = server._digest(rows)
@@ -188,12 +189,12 @@ def main() -> None:
         "repo": REPO,
         "record": None,
         "decider": {"reachable": False},
-        "pipeline": {"available": False},
         "replay": {"frames": info["replay"]["frames"]},
         "reels": info["reels"],
         "questions": info["questions"],
         "thresholds": info["thresholds"],
         "difficulty_note": info["difficulty_note"],
+        "setup": info["setup"],
     }
 
     full: set[str] = set()
@@ -207,7 +208,8 @@ def main() -> None:
         (out / "data" / f"{reel['id']}.json").write_text(json.dumps(data, separators=(",", ":")))
         d = data["digest"]
         print(
-            f"{reel['id']}: {d['frames']} frames, {d['empty']} empty, {d['lite']} lite, {d['pro']} pro, {d['alerts']} alerts"
+            f"{reel['id']}: {d['frames']} frames, {d['empty']} empty, {d['lite']} lite, {d['pro']} pro, "
+            f"{d['alerts']} alerts, ${d['spent_usd']:.4f} est. vs Pro ${d['baseline_usd']:.4f}, Lite ${d['baseline_lite_usd']:.4f}"
         )
     (out / "data" / "status.json").write_text(json.dumps(status, indent=1))
 

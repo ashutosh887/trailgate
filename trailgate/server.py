@@ -8,6 +8,9 @@ Run:
   python -m trailgate.server   (replays results/decider_answers.jsonl with the v2 burst policy)
   python -m trailgate.server --replay results/decider_answers.jsonl
   python -m trailgate.server --mode live --record results/run-live.jsonl
+
+Bedrock spend is the real `ModelCall.cost_usd` when calls were made, otherwise the estimate from
+`bedrock.tier_cost` per frame plus one `bedrock.alert_cost` per escalated burst, labelled "est." in the UI.
 """
 
 from __future__ import annotations
@@ -34,10 +37,13 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.background import BackgroundTask
 
-from patterns.presence_router import PresenceRouterCore, Thresholds, build_questions
+from patterns.presence_router import PresenceRouterCore, Route, Thresholds, build_questions
 from patterns.presence_router.router import DEFAULT_URL
-from trailgate.results import FrameResult, ModelCall
+from trailgate import bedrock
+from trailgate.pipeline import Triage, load_thresholds
+from trailgate.results import FrameResult
 
 ROOT = Path(__file__).resolve().parent.parent
 WEB = Path(__file__).resolve().parent / "web"
@@ -46,16 +52,8 @@ MANIFESTS = ROOT / "data"
 RESULTS = ROOT / "results"
 OUTBOX = Path(os.environ.get("TRAILGATE_OUTBOX", ROOT / "outbox"))
 
-TIER_ACTION = {
-    "skip": "EMPTY",
-    "small": "LABEL",
-    "large": "LABEL",
-    "escalate": "ALERT",
-}
-TIER_MODEL = {"small": "Nova Lite", "large": "Nova Pro", "escalate": "Nova Lite"}
-
-FALLBACK_PRICING = {"Nova Lite": (0.00006, 0.00024), "Nova Pro": (0.0008, 0.0032)}
-FALLBACK_TOKENS_PER_FRAME = {"in": 1290, "out": 15}
+TIER_MODELS = {"small": "Nova Lite", "large": "Nova Pro", "escalate": "Nova Pro label + Nova Lite alert"}
+SETUP_HINT = "No frames in data/images: run scripts/fetch_cct.py and scripts/fetch_bursts.py first"
 
 REELS = [
     {"id": "card-a", "name": "Card A", "seed": 7, "size": 54},
@@ -127,125 +125,71 @@ def audited_people() -> list[str]:
     return sorted(r["file_name"] for r in rows if r.get("set") == "heldout" and r.get("audited_label") == "person")
 
 
-@lru_cache(maxsize=1)
-def _pricing() -> dict:
-    """Per-frame label-call estimates: from trailgate.bedrock when importable, else FALLBACK_PRICING."""
-    try:
-        from trailgate import bedrock
-
-        tokens_in = bedrock.estimate_image_tokens(1024, 747) + bedrock.estimate_text_tokens(bedrock.LABEL_TEXT)
-        return {
-            "Nova Lite": bedrock.baseline_cost("small"),
-            "Nova Pro": bedrock.baseline_cost("large"),
-            "tokens": tokens_in + bedrock.LABEL_OUTPUT_TOKENS,
-            "source": "trailgate.bedrock.baseline_cost",
-        }
-    except (ImportError, AttributeError):
-        t = FALLBACK_TOKENS_PER_FRAME
-        per = {k: (t["in"] * v[0] + t["out"] * v[1]) / 1000 for k, v in FALLBACK_PRICING.items()}
-        return {**per, "tokens": t["in"] + t["out"], "source": "FALLBACK_PRICING (server.py)"}
+def _model_name(model_id: str) -> str:
+    return "Nova Pro" if "pro" in model_id.lower() else "Nova Lite"
 
 
-def _model_name(model_id: str, tier: str) -> str:
-    mid = (model_id or "").lower()
-    if "pro" in mid:
-        return "Nova Pro"
-    if "lite" in mid:
-        return "Nova Lite"
-    return TIER_MODEL.get(tier, "Nova Lite")
-
-
-def costing(result: dict) -> dict:
-    """What the frame cost, what it would have cost on Nova Pro, and whether any part is an estimate."""
-    p = _pricing()
-    actual, est, tok, tok_est = 0.0, 0.0, 0, 0
-    calls = result.get("calls") or []
-    for call in calls:
-        if call.get("error"):
-            est += p[_model_name(call.get("model_id", ""), call.get("tier", result["tier"]))]
-            tok_est += p["tokens"]
-        else:
-            actual += float(call.get("cost_usd") or 0.0)
-            tok += int(call.get("input_tokens") or 0) + int(call.get("output_tokens") or 0)
-    if not calls and result["tier"] in TIER_MODEL:
-        est += p[TIER_MODEL[result["tier"]]]
-        tok_est += p["tokens"]
-        if result["tier"] == "escalate":
-            est += p["Nova Lite"]
-            tok_est += p["tokens"]
+def _line(model: str, kind: str, usd: float, frame: str, estimated: bool, call: dict | None = None) -> dict:
+    call = call or {}
     return {
-        "actual_usd": actual,
-        "estimated_usd": est,
-        "tokens": tok,
-        "tokens_estimated": tok_est,
-        "baseline_usd": p["Nova Pro"],
-        "baseline_lite_usd": p["Nova Lite"],
-        "baseline_tokens": p["tokens"],
-        "pricing_source": p["source"],
+        "model": model,
+        "kind": kind,
+        "usd": usd,
+        "estimated": estimated,
+        "frame": frame,
+        "latency_ms": call.get("latency_ms"),
+        "error": call.get("error"),
+    }
+
+
+def costing(result: dict, charge_alert: bool) -> dict:
+    """Bedrock lines for a row: real calls when made (errored ones estimated), else estimates by tier.
+
+    `charge_alert` adds the one Nova Lite alert of an escalated burst when no call was recorded for it.
+    Baselines cover the same frames as the lines: one frame in replay, the whole burst in live mode.
+    """
+    frame = result["frame"]
+    lines = []
+    for call in result.get("calls") or []:
+        kind = "alert" if call["tier"] == "alert" else "label"
+        estimated = bool(call.get("error"))
+        usd = (
+            (bedrock.alert_cost() if kind == "alert" else bedrock.tier_cost(call["tier"]))
+            if estimated
+            else call["cost_usd"]
+        )
+        lines.append(_line(_model_name(call["model_id"]), kind, usd, call.get("frame", frame), estimated, call))
+    tier = result["tier"]
+    if not result.get("calls") and tier != "skip":
+        label_model = TIER_MODELS["large" if tier == "escalate" else tier]
+        lines.append(_line(label_model, "label", bedrock.tier_cost(tier), frame, True))
+        if tier == "escalate" and charge_alert:
+            lines.append(_line("Nova Lite", "alert", bedrock.alert_cost(), frame, True))
+    frames = int(result.get("burst_frames") or 1)
+    return {
+        "actual_usd": sum(x["usd"] for x in lines if not x["estimated"]),
+        "estimated_usd": sum(x["usd"] for x in lines if x["estimated"]),
+        "frames": frames,
+        "baseline_usd": bedrock.tier_cost("large") * frames,
+        "baseline_lite_usd": bedrock.tier_cost("small") * frames,
+        "lines": lines,
     }
 
 
 def _frame_key(value: str | None) -> str | None:
-    if not value:
-        return None
-    name = Path(str(value)).name
-    return name if name.endswith(".jpg") else f"{name}.jpg"
+    return Path(value).name if value else None
 
 
-PRESENT_KEYS = ("present", "p_criteria", "animal_present", "p_plain")
-ESCALATE_KEYS = ("escalate", "e_criteria", "human_present", "e_plain")
+def _burst_key(file_name: str) -> str:
+    return manifest().get(file_name, {}).get("seq_id") or file_name
 
 
-def _pick(answers: dict, keys: tuple[str, ...], prefix: str) -> dict | None:
-    for key in keys:
-        if isinstance(answers.get(key), dict) and "noul" in answers[key]:
-            return answers[key]
-    for key, value in answers.items():
-        if key.startswith(prefix) and isinstance(value, dict) and "noul" in value:
-            return value
-    return None
-
-
-def _answers_of(row: dict) -> dict | None:
-    """Decider answers in router shape {present, escalate, difficulty}, mapping eval-style keys when needed."""
-    nested = [(row.get(k) or {}).get("answers") for k in ("response", "decider")]
-    for candidate in (row.get("answers"), *nested):
-        if not isinstance(candidate, dict):
-            continue
-        present = _pick(candidate, PRESENT_KEYS, "p_")
-        difficulty = candidate.get("difficulty")
-        if present is None or not isinstance(difficulty, dict):
-            continue
-        out = {"present": present, "difficulty": difficulty}
-        escalate = _pick(candidate, ESCALATE_KEYS, "e_")
-        if escalate is not None:
-            out["escalate"] = escalate
-        return out
-    return None
-
-
-def _normalise(row: dict) -> tuple[str, dict] | None:
-    """Accept a recorded FrameResult row or a raw Decider-answers row; return (file_name, FrameResult dict)."""
-    key = _frame_key(row.get("frame") or row.get("file_name") or row.get("image") or row.get("path") or row.get("id"))
-    if not key:
-        return None
-    if "tier" in row and "reason" in row and "present" in row:
-        result = dict(row)
-        result.setdefault("calls", [])
-        result["frame"] = key
-        result["kind"] = "recorded"
-        return key, result
-    answers = _answers_of(row)
-    if answers is None:
-        return None
-    latency = float(
-        row.get("latency_ms")
-        or row.get("decider_latency_ms")
-        or row.get("server_latency_ms")
-        or (row.get("response") or {}).get("latency_ms")
-        or 0.0
-    )
-    route = _core().decide(answers, latency)
+def _normalise(row: dict) -> tuple[str, dict]:
+    """A recorded live row (from --record) as is, or a results/decider_answers.jsonl row as a FrameResult dict."""
+    if "tier" in row:
+        return row["frame"], {**row, "kind": "recorded"}
+    key = row["file_name"]
+    route = _core().decide(row["answers"], float(row.get("server_latency_ms") or 0.0))
     meta = manifest().get(key, {})
     result = FrameResult(
         frame=key,
@@ -255,22 +199,18 @@ def _normalise(row: dict) -> tuple[str, dict] | None:
         difficulty=route.difficulty,
         reason=route.reason,
         decider_latency_ms=route.latency_ms,
-        label=row.get("label") or meta.get("label"),
-        lighting=row.get("lighting") or meta.get("lighting"),
+        label=meta.get("label"),
+        lighting=meta.get("lighting"),
     ).to_dict()
-    result["answers"] = answers
+    result["answers"] = route.answers
     result["difficulty_confidence"] = route.difficulty_confidence
     result["kind"] = "answers"
     return key, result
 
 
+@lru_cache(maxsize=1)
 def thresholds() -> Thresholds:
-    try:
-        from trailgate.pipeline import load_thresholds
-
-        return load_thresholds()
-    except (ImportError, OSError, ValueError, TypeError):
-        return Thresholds()
+    return load_thresholds()
 
 
 @lru_cache(maxsize=1)
@@ -278,25 +218,12 @@ def _core() -> PresenceRouterCore:
     return PresenceRouterCore(thresholds=thresholds())
 
 
-def replay_sources() -> list[Path]:
-    if not RESULTS.exists():
-        return []
-    return sorted(RESULTS.glob("*.jsonl"), key=lambda p: p.stat().st_mtime, reverse=True)
+def replay_path() -> Path:
+    return Path(CONFIG["replay"]) if CONFIG["replay"] else DEFAULT_REPLAY
 
 
-def replay_path() -> Path | None:
-    if CONFIG["replay"]:
-        return Path(CONFIG["replay"])
-    if DEFAULT_REPLAY.exists():
-        return DEFAULT_REPLAY
-    sources = replay_sources()
-    if not sources:
-        return None
-    return max(sources, key=lambda p: (len(load_replay(p)), p.stat().st_mtime))
-
-
-def load_replay(path: Path | None) -> dict[str, dict]:
-    if not path or not path.exists():
+def load_replay(path: Path) -> dict[str, dict]:
+    if not path.exists():
         return {}
     stat = path.stat()
     return _load_replay_cached(str(path), stat.st_mtime, stat.st_size)
@@ -307,15 +234,10 @@ def _load_replay_cached(path: str, mtime: float, size: int) -> dict[str, dict]:
     out: dict[str, dict] = {}
     with open(path) as fh:
         for line in fh:
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                parsed = _normalise(json.loads(line))
-            except (ValueError, KeyError, TypeError):
-                continue
-            if parsed and (IMAGES / parsed[0]).exists():
-                out[parsed[0]] = parsed[1]
+            if line.strip():
+                key, result = _normalise(json.loads(line))
+                if (IMAGES / key).exists():
+                    out[key] = result
     return out
 
 
@@ -416,108 +338,61 @@ def decider_reachable(url: str) -> bool:
         return False
 
 
-def pipeline_status() -> dict:
-    try:
-        from trailgate import pipeline
-    except ImportError as exc:
-        detail = f"trailgate.pipeline not importable ({type(exc).__name__}); router-only adapter"
-        return {"available": False, "detail": detail}
-    return {"available": hasattr(pipeline, "Triage"), "detail": "trailgate.pipeline.Triage"}
-
-
-class _RouterOnlyTriage:
-    """Stand-in for trailgate.pipeline.Triage: Decider decides, Bedrock is reported as queued."""
-
-    def __init__(self, bedrock: bool = True):
-        self.router = PresenceRouterCore(thresholds=thresholds())
-
-    def run(self, path, label=None, lighting=None) -> FrameResult:
-        route = self.router.route(path)
-        calls = []
-        if route.tier.value in TIER_MODEL:
-            calls.append(
-                ModelCall(
-                    model_id=TIER_MODEL[route.tier.value],
-                    tier=route.tier.value,
-                    input_tokens=0,
-                    output_tokens=0,
-                    latency_ms=0.0,
-                    cost_usd=0.0,
-                    error="pipeline not available",
-                )
-            )
-        return FrameResult(
-            frame=str(path),
-            tier=route.tier.value,
-            present=route.present,
-            escalate=route.escalate,
-            difficulty=route.difficulty,
-            reason=route.reason,
-            decider_latency_ms=route.latency_ms,
-            calls=calls,
-            label=label,
-            lighting=lighting,
-        )
-
-
-class LiveTriage:
-    """Wraps the pipeline: runs the frame's whole burst and keeps the Decider answers so the UI can show them."""
+class ConsoleTriage(Triage):
+    """The pipeline without its own notifier (the console's phone card is the alert surface), keeping each Route."""
 
     def __init__(self):
-        try:
-            from trailgate.pipeline import Triage
-        except ImportError:
-            Triage = _RouterOnlyTriage
-        self.inner = Triage(bedrock=True)
-        self.routes: list = []
-        original = self.inner.router.route
+        super().__init__(bedrock=True, notify=False)
+        self.routes: list[Route] = []
 
-        def capture(image):
-            route = original(image)
-            self.routes.append(route)
-            return route
-
-        self.inner.router.route = capture
-
-    def run(self, path: Path, label: str | None, lighting: str | None) -> dict:
-        self.routes = []
-        names = [f["file_name"] for f in burst_of(path.name) if f.get("file_name")] or [path.name]
-        paths = [IMAGES / n for n in names if (IMAGES / n).exists()]
-        if path not in paths or not hasattr(self.inner, "run_burst"):
-            paths = [path]
-        metas = [manifest().get(p.name, {}) for p in paths]
-        if len(paths) > 1:
-            results = self.inner.run_burst(paths, [m.get("label") for m in metas], [m.get("lighting") for m in metas])
-        else:
-            results = [self.inner.run(path, label=label, lighting=lighting)]
-        at = paths.index(path)
-        data = results[at].to_dict() if hasattr(results[at], "to_dict") else asdict(results[at])
-        data["frame"] = _frame_key(data.get("frame")) or data.get("frame")
-        if len(self.routes) == len(paths):
-            data["answers"] = self.routes[at].answers
-            data["difficulty_confidence"] = self.routes[at].difficulty_confidence
-            if len(paths) > 1:
-                data["burst"] = [
-                    {
-                        "file_name": p.name,
-                        "present": r.present,
-                        "escalate": r.escalate,
-                        "self": p == path,
-                        "thumb": f"/thumb/{p.name}",
-                    }
-                    for p, r in zip(paths, self.routes, strict=False)
-                ]
-        return data
+    def route(self, data: bytes) -> Route:
+        route = super().route(data)
+        self.routes.append(route)
+        return route
 
 
-_triage: LiveTriage | None = None
+_triage: ConsoleTriage | None = None
 
 
-def triage() -> LiveTriage:
+def triage() -> ConsoleTriage:
     global _triage
     if _triage is None:
-        _triage = LiveTriage()
+        _triage = ConsoleTriage()
     return _triage
+
+
+def live_result(path: Path) -> dict:
+    """Run the frame's whole burst; the frame carries the burst's Bedrock calls, cost and alert."""
+    names = [f["file_name"] for f in burst_of(path.name) if (IMAGES / f.get("file_name", "")).is_file()]
+    if path.name not in names:
+        names = [path.name]
+    metas = [manifest().get(n, {}) for n in names]
+    t = triage()
+    t.routes = []
+    results = t.run_burst(
+        [IMAGES / n for n in names], [m.get("label") for m in metas], [m.get("lighting") for m in metas]
+    )
+    at = names.index(path.name)
+    data = results[at].to_dict()
+    data["calls"] = [{**c, "frame": r["frame"]} for r in (x.to_dict() for x in results) for c in r["calls"]]
+    data["cost_usd"] = sum(r.cost_usd for r in results)
+    data["alert"] = next((r.alert for r in results if r.alert), None)
+    data["burst_frames"] = len(names)
+    if len(t.routes) == len(names):
+        data["answers"] = t.routes[at].answers
+        data["difficulty_confidence"] = t.routes[at].difficulty_confidence
+    if len(names) > 1:
+        data["burst"] = [
+            {
+                "file_name": r.frame,
+                "present": r.present,
+                "escalate": r.escalate,
+                "self": i == at,
+                "thumb": f"/thumb/{r.frame}",
+            }
+            for i, r in enumerate(results)
+        ]
+    return data
 
 
 def _record(row: dict) -> None:
@@ -529,17 +404,19 @@ def _record(row: dict) -> None:
         fh.write(json.dumps(row) + "\n")
 
 
-def _enrich(result: dict, meta: dict, source: str) -> dict:
+def _enrich(result: dict, meta: dict, source: str, alerted: set[str]) -> dict:
+    """A streamed row; `alerted` holds the bursts whose alert is already charged in this run."""
     result.setdefault("difficulty_confidence", (result.get("answers") or {}).get("difficulty", {}).get("confidence"))
-    for call in result.get("calls") or []:
-        call["model"] = _model_name(call.get("model_id", ""), call.get("tier", result["tier"]))
+    burst = _burst_key(meta["file_name"])
+    charge_alert = result["tier"] == "escalate" and burst not in alerted
+    if charge_alert:
+        alerted.add(burst)
     return {
         "index": meta["index"],
         "meta": meta,
         "result": result,
-        "action": TIER_ACTION.get(result["tier"], result["tier"].upper()),
-        "model": TIER_MODEL.get(result["tier"]),
-        "costing": costing(result),
+        "model": TIER_MODELS.get(result["tier"]),
+        "costing": costing(result, charge_alert),
         "source": source,
     }
 
@@ -577,6 +454,7 @@ def _digest(rows: list[dict]) -> dict:
         "spent_usd": spent,
         "baseline_usd": baseline,
         "baseline_lite_usd": baseline_lite,
+        "bedrock_calls": sum(len(r["costing"]["lines"]) for r in rows),
         "alert_frames": [r["meta"] for r in rows if r["result"]["tier"] == "escalate"],
     }
 
@@ -587,13 +465,11 @@ def _resolve_reel(reel_id: str, mode: str) -> tuple[list[dict], dict[str, dict],
         path = replay_path()
         cache = load_replay(path)
         frames = build_reel(reel["seed"], reel["size"], cache) if cache else []
-        return frames, cache, _display(path) or ""
+        return frames, cache, _display(path)
     return build_reel(reel["seed"], reel["size"]), {}, "live"
 
 
-def _display(path: Path | None) -> str | None:
-    if path is None:
-        return None
+def _display(path: Path) -> str:
     return str(path.relative_to(ROOT)) if path.is_relative_to(ROOT) else str(path)
 
 
@@ -607,22 +483,25 @@ def status() -> dict:
     return status_info()
 
 
+def setup_message(replay_frames: int) -> str | None:
+    if not any(IMAGES.glob("*.jpg")):
+        return SETUP_HINT
+    if not replay_frames:
+        return f"No replayable frames in {_display(replay_path())}"
+    return None
+
+
 def status_info(probe_decider: bool = True) -> dict:
     """Console status; probe_decider=False skips the TCP check so nothing touches the Decider port."""
     path = replay_path()
-    cache = load_replay(path)
+    frames = len(load_replay(path))
     reachable = decider_reachable(CONFIG["decider_url"]) if probe_decider else False
     return {
         "mode": CONFIG["mode"],
         "decider": {"url": CONFIG["decider_url"], "reachable": reachable},
-        "pipeline": pipeline_status(),
-        "replay": {
-            "path": _display(path),
-            "frames": len(cache),
-            "sources": [str(p.relative_to(ROOT)) for p in replay_sources()],
-        },
+        "replay": {"path": _display(path), "frames": frames},
+        "setup": setup_message(frames),
         "record": CONFIG["record"],
-        "pricing_source": _pricing()["source"],
         "reels": REELS,
         "questions": build_questions(),
         "thresholds": asdict(thresholds()),
@@ -642,15 +521,24 @@ async def run(request: Request, id: str = REELS[0]["id"], mode: str | None = Non
     mode = mode or CONFIG["mode"]
     pace = CONFIG["pace"] if pace is None else max(0.05, min(pace, 5.0))
     frames, cache, source = _resolve_reel(id, mode)
-    if mode == "live" and _run_lock.locked():
-        raise HTTPException(409, "a live run is already in progress; Decider takes one request at a time")
+    held = False
+    if mode == "live":
+        if _run_lock.locked():
+            raise HTTPException(409, "a live run is already in progress; Decider takes one request at a time")
+        await _run_lock.acquire()
+        held = True
+
+    def release() -> None:
+        nonlocal held
+        if held:
+            held = False
+            _run_lock.release()
 
     async def stream():
         rows: list[dict] = []
-        yield _sse("start", {"total": len(frames), "mode": mode, "source": source, "pace": pace})
-        if mode == "live":
-            await _run_lock.acquire()
+        alerted: set[str] = set()
         try:
+            yield _sse("start", {"total": len(frames), "mode": mode, "source": source, "pace": pace})
             for meta in frames:
                 if await request.is_disconnected():
                     return
@@ -658,8 +546,7 @@ async def run(request: Request, id: str = REELS[0]["id"], mode: str | None = Non
                 if mode == "live":
                     started = time.perf_counter()
                     try:
-                        path = IMAGES / meta["file_name"]
-                        result = await run_in_threadpool(triage().run, path, meta["label"], meta["lighting"])
+                        result = await run_in_threadpool(live_result, IMAGES / meta["file_name"])
                     except Exception as exc:
                         log.exception("live triage failed for %s", meta["file_name"])
                         yield _sse(
@@ -675,16 +562,18 @@ async def run(request: Request, id: str = REELS[0]["id"], mode: str | None = Non
                 else:
                     result = replay_result(meta["file_name"], cache)
                     await asyncio.sleep(_replay_delay(result, pace))
-                row = _enrich(result, meta, source)
+                row = _enrich(result, meta, source, alerted)
                 rows.append(row)
                 yield _sse("frame", row)
             yield _sse("done", _digest(rows))
         finally:
-            if mode == "live" and _run_lock.locked():
-                _run_lock.release()
+            release()
 
     return StreamingResponse(
-        stream(), media_type="text/event-stream", headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
+        stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        background=BackgroundTask(release),
     )
 
 
@@ -712,10 +601,20 @@ async def action(request: Request) -> JSONResponse:
     return JSONResponse({"ok": True, "logged": row})
 
 
+def _image(name: str) -> Path:
+    if name not in manifest() or not (IMAGES / name).is_file():
+        raise HTTPException(404)
+    return IMAGES / name
+
+
+@app.get("/frames/{name}")
+def frame(name: str) -> FileResponse:
+    return FileResponse(_image(name), headers={"Cache-Control": "max-age=86400"})
+
+
 @app.get("/thumb/{name}")
 def thumb(name: str) -> Response:
-    if name not in manifest() or not (IMAGES / name).exists():
-        raise HTTPException(404)
+    _image(name)
     return Response(_thumb_bytes(name), media_type="image/jpeg", headers={"Cache-Control": "max-age=86400"})
 
 
@@ -731,7 +630,6 @@ def _thumb_bytes(name: str) -> bytes:
         return buf.getvalue()
 
 
-app.mount("/frames", StaticFiles(directory=IMAGES), name="frames")
 app.mount("/static", StaticFiles(directory=WEB), name="static")
 
 
@@ -739,7 +637,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Trailgate demo UI")
     parser.add_argument("--mode", choices=["live", "replay"], default=os.environ.get("TRAILGATE_MODE", "replay"))
     parser.add_argument(
-        "--replay", help="jsonl of FrameResult rows or Decider answers (default: results/decider_answers.jsonl)"
+        "--replay", help="Decider answers (results/decider_answers.jsonl, the default) or rows recorded with --record"
     )
     parser.add_argument("--record", help="append every live FrameResult to this jsonl, replayable later")
     parser.add_argument("--pace", type=float, default=1.0, help="replay delay multiplier (lower is faster)")

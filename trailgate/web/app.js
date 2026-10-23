@@ -3,7 +3,6 @@
 const $ = (id) => document.getElementById(id);
 const params = new URLSearchParams(location.search);
 const STATIC = window.TRAILGATE_STATIC === true;
-const QUEUED = STATIC ? "not called in this replay" : "queued · Bedrock unavailable";
 const thumbOf = (n) => (STATIC ? "thumbs/" : "/thumb/") + n;
 const cards = new Map();
 const S = {
@@ -11,7 +10,7 @@ const S = {
   pinned: null, current: null, queue: [], phoneBusy: false, bedrock: null, total: {},
 };
 const ACTION = { skip: "Empty", small: "Label", large: "Label", escalate: "Alert" };
-const MODEL = { small: "Nova Lite", large: "Nova Pro", escalate: "Nova Lite" };
+const notCalled = () => (STATIC || S.mode === "replay" ? "not called in this replay" : "Bedrock unavailable");
 const usd = (v) => "$" + (v < 1 ? v.toFixed(4) : v.toFixed(2));
 const int = (v) => Math.round(v).toLocaleString("en-US");
 const pct = (v) => (v == null ? "—" : v.toFixed(2));
@@ -58,7 +57,7 @@ function renderModes() {
     dec.className = "pill " + (st.decider.reachable ? "live" : "down");
     dec.querySelector("em").textContent = st.decider.reachable ? "live · " + st.decider.url.replace(/^https?:\/\//, "") : "offline";
     $("hint").textContent = st.decider.reachable
-      ? `Live: one Decider call per frame, one frame at a time${st.pipeline.available ? "" : " · router-only adapter"}`
+      ? "Live: each frame runs with its whole camera burst, one Decider call per burst frame, then Bedrock; cost shown per burst"
       : "Decider is not reachable; start it or switch to Replay";
     setPill("pill-source", "", st.record ? "recording → " + st.record : "live run, not recorded");
   } else {
@@ -67,6 +66,7 @@ function renderModes() {
     $("hint").textContent = "Replay · real Decider answers, v2 burst policy · sped up for viewing, latencies are real";
     setPill("pill-source", "", (st.replay.path || "—").split("/").pop());
   }
+  if (st.setup) $("hint").textContent = st.setup;
   setBedrock(null);
 }
 
@@ -139,7 +139,7 @@ function reset() {
   S.queue = [];
   S.current = null;
   S.pinned = null;
-  S.total = { seen: 0, skip: 0, small: 0, large: 0, escalate: 0, spent: 0, est: 0, base: 0, lite: 0, tokens: 0, tokEst: 0, btok: 0 };
+  S.total = { seen: 0, skip: 0, small: 0, large: 0, escalate: 0, spent: 0, est: 0, base: 0, lite: 0, calls: 0, frames: 0 };
   $("digest").hidden = true;
   hidePhone(true);
   updateLedger();
@@ -149,7 +149,7 @@ function reset() {
 }
 
 function start() {
-  if (!S.frames.length) return;
+  if (!S.frames.length || S.status.setup) return;
   reset();
   for (const t of document.querySelectorAll(".tile")) t.dataset.state = "pending";
   if (STATIC) { setRunning(true); playStatic(); return; }
@@ -204,15 +204,12 @@ function onFrame(row) {
   T.est += costing.estimated_usd;
   T.base += costing.baseline_usd;
   T.lite += costing.baseline_lite_usd;
-  T.tokens += costing.tokens;
-  T.tokEst += costing.tokens_estimated;
-  T.btok += costing.baseline_tokens;
-  T.perFrame = costing.baseline_usd;
+  T.calls += costing.lines.length;
+  T.frames += costing.frames;
   updateLedger(result.tier);
 
-  const calls = result.calls || [];
-  if (calls.some((c) => !c.error)) setBedrock("live");
-  else if (MODEL[result.tier] && S.bedrock !== "live") setBedrock("queued");
+  if (costing.lines.some((l) => !l.estimated)) setBedrock("live");
+  else if (costing.lines.length && S.bedrock !== "live") setBedrock("queued");
 
   if (S.pinned == null) inspect(index);
   if (result.tier === "escalate") queueAlert(row);
@@ -227,12 +224,6 @@ function onFailed({ index, error }) {
   updateLedger();
 }
 
-function modelCall(result) {
-  const calls = result.calls || [];
-  const ok = calls.find((c) => !c.error);
-  return { ok, failed: calls.find((c) => c.error), queued: !ok };
-}
-
 function paintTile(t, row) {
   const r = row.result;
   t.dataset.state = r.tier;
@@ -240,11 +231,10 @@ function paintTile(t, row) {
   const md = t.querySelector(".md");
   md.className = "md";
   if (r.tier === "skip") { sp.textContent = "$0 · no model"; md.textContent = ""; return; }
-  if (r.tier === "escalate") { sp.textContent = "Alert"; md.textContent = "ranger"; return; }
-  const { ok } = modelCall(r);
+  if (r.tier === "escalate") { sp.textContent = "Alert"; md.textContent = "ranger"; t.title = row.model; return; }
   md.textContent = r.tier === "small" ? "Lite" : "Pro";
-  if (ok && r.species) sp.textContent = title(r.species);
-  else { sp.textContent = STATIC ? "" : "queued"; md.classList.add("queued"); t.title = `${MODEL[r.tier]} — ${QUEUED}`; }
+  if (r.species) sp.textContent = title(r.species);
+  else { sp.textContent = ""; md.classList.add("queued"); t.title = `${row.model} · ${notCalled()} · est. ${usd(row.costing.estimated_usd)}`; }
 }
 
 function bump(id) {
@@ -267,11 +257,11 @@ function updateLedger(tier) {
   $("c-spent").textContent = usd(spent) + est;
   $("c-lite-all").textContent = usd(T.lite) + " est.";
   $("c-pro-all").textContent = usd(T.base) + " est.";
-  $("c-tokens").textContent = `${int(T.tokens + T.tokEst)} tokens · Pro on every frame ${int(T.btok)}`;
+  $("c-calls").textContent = `${int(T.calls)} Bedrock calls${est} vs ${int(T.frames)} with Nova on every frame`;
   $("c-ratio").textContent = T.base > 0
     ? `${Math.round((1 - spent / T.base) * 100)}% under Pro · ${(spent / (T.lite || 1)).toFixed(1)}× Lite`
     : "Bedrock costs estimated";
-  const full = (T.perFrame || 0) * S.frames.length || 1;
+  const full = (T.base / (T.frames || 1)) * Math.max(S.frames.length, T.frames) || 1;
   $("bar-spent").style.width = Math.min(100, (spent / full) * 100) + "%";
   $("bar-lite").style.width = Math.min(100, (T.lite / full) * 100) + "%";
   $("bar-pro").style.width = Math.min(100, (T.base / full) * 100) + "%";
@@ -373,22 +363,23 @@ function setVerdict(row, f, deciding) {
     skip: "Archived. No model was called.",
     small: "Nova Lite · Decider confident there is an animal.",
     large: "Nova Pro · Decider unsure, so the stronger model looks.",
-    escalate: "Person or vehicle → straight to the ranger's phone.",
+    escalate: `Person or vehicle → straight to the ranger's phone · ${row.model}.`,
   }[r.tier];
   $("reason").textContent = r.reason;
 
   calls.append(el("div", "call", `<span class="who dec">Decider 2B</span><span>3 questions · <b>$0</b> local</span><span class="num">${int(r.decider_latency_ms || 0)} ms</span>`));
-  const want = MODEL[r.tier];
-  if (want) {
-    const { ok, failed } = modelCall(r);
-    const cls = (ok ? ok.model : want) === "Nova Pro" ? "pro" : "lite";
-    if (ok) {
-      const what = r.tier === "escalate" ? "alert written" : `<b>${esc(title(r.species || "?"))}</b>${r.species_confidence ? " · " + esc(r.species_confidence) : ""}`;
-      calls.append(el("div", "call", `<span class="who ${cls}">${esc(ok.model)}</span><span>${what}</span><span class="num">${usd(ok.cost_usd)} · ${int(ok.latency_ms)} ms</span>`));
-    } else {
-      const n = el("div", "call queued", `<span class="who off">${esc(want)}</span><span>${QUEUED}</span><span class="num"></span>`);
-      n.title = `${want} — ${QUEUED}. Estimated ${usd(row.costing.estimated_usd)}.` + (failed ? ` ${failed.error}` : "");
+  const c = row.costing;
+  if (c.frames > 1) calls.append(el("div", "call burst", `<span class="who off">Burst</span><span>burst of ${c.frames} frames · ${c.lines.length} Bedrock calls</span><span class="num">${usd(c.actual_usd + c.estimated_usd)}${c.estimated_usd ? " est." : ""}</span>`));
+  for (const l of c.lines) {
+    const self = l.frame === r.frame;
+    const what = l.kind === "alert" ? "ranger alert" : self && r.species ? `<b>${esc(title(r.species))}</b>${r.species_confidence ? " · " + esc(r.species_confidence) : ""}` : self ? "species label" : "label · burst frame";
+    const cls = l.model === "Nova Pro" ? "pro" : "lite";
+    if (l.estimated) {
+      const n = el("div", "call queued", `<span class="who off">${esc(l.model)}</span><span>${what} · ${notCalled()}</span><span class="num">${usd(l.usd)} est.</span>`);
+      if (l.error) n.title = l.error;
       calls.append(n);
+    } else {
+      calls.append(el("div", "call", `<span class="who ${cls}">${esc(l.model)}</span><span>${what}</span><span class="num">${usd(l.usd)} · ${int(l.latency_ms || 0)} ms</span>`));
     }
   }
 }
@@ -408,8 +399,7 @@ function nextAlert() {
   $("ph-time").textContent = f.clock || "--:--";
   $("ph-title").textContent = `Person or vehicle at camera ${f.location}, ${f.clock}`;
   $("ph-img").src = f.full;
-  const { ok } = modelCall(r);
-  $("ph-text").textContent = ok && r.alert ? r.alert : `Decider is ${Math.round((r.escalate || 0) * 100)}% sure a person or vehicle is in frame. Alert sent with the frame attached; the written note from Nova Lite is ${STATIC ? "not written in this replay" : "queued (Bedrock unavailable)"}.`;
+  $("ph-text").textContent = r.alert || `Decider is ${Math.round((r.escalate || 0) * 100)}% sure a person or vehicle is in frame. Alert sent with the frame attached; the Nova Lite note is not written in this replay.`;
   $("ph-meta").textContent = `${f.captured} · ${f.lighting === "night_ir" ? "night IR" : "daylight"} · decided in ${int(r.decider_latency_ms || 0)} ms`;
   $("ph-done").hidden = true;
   $("ph-acts").hidden = false;
@@ -469,11 +459,11 @@ function showDigest(d) {
   const sp = Object.entries(d.species).sort((a, b) => b[1] - a[1]);
   $("dg-species").innerHTML = sp.length
     ? sp.map(([k, v]) => `<li>${esc(title(k))}<b>${v}</b></li>`).join("")
-    : `<li class="none">${d.lite} to Nova Lite, ${d.pro} to Nova Pro; species labels ${STATIC ? "are not generated in this replay" : "queued while Bedrock is unavailable"}.</li>`;
+    : `<li class="none">${d.lite} to Nova Lite, ${d.pro} to Nova Pro; species labels ${STATIC || S.mode === "replay" ? "are not generated in this replay" : "missing while Bedrock is unavailable"}.</li>`;
   $("dg-alerts").innerHTML = d.alert_frames.map((f) => `<figure><img src="${f.thumb}" alt=""><figcaption><b>cam ${esc(f.location)}</b> · ${esc(f.clock)}</figcaption></figure>`).join("") || `<p class="dg-note mono">Nothing for you tonight.</p>`;
   const saved = d.baseline_usd ? Math.round((1 - d.spent_usd / d.baseline_usd) * 100) : 0;
   $("dg-cost").innerHTML = `<b>${usd(d.spent_usd)}</b> <span class="vs">vs Pro ${usd(d.baseline_usd)} · Lite ${usd(d.baseline_lite_usd)}</span>`;
-  $("dg-note").textContent = `${saved}% less than Nova Pro on every frame; ${(d.spent_usd / (d.baseline_lite_usd || 1)).toFixed(1)}× Nova Lite on every frame (estimates). ${d.empty} frames never reached a model. Decider p50 ${d.decider_p50_ms ? int(d.decider_p50_ms) + " ms" : "—"}, run locally.` + (S.total.est > 0 ? (STATIC ? " Bedrock spend is estimated from token counts; no Bedrock call was made." : " Bedrock spend is estimated from token counts; calls are queued.") : "");
+  $("dg-note").textContent = `${saved}% less than Nova Pro on every frame; ${(d.spent_usd / (d.baseline_lite_usd || 1)).toFixed(1)}× Nova Lite on every frame (estimates). ${d.empty} frames never reached a model. Decider p50 ${d.decider_p50_ms ? int(d.decider_p50_ms) + " ms" : "—"}, run locally.` + (S.total.est > 0 ? ` Bedrock spend is estimated from token counts (${d.alerts} alerts: Nova Pro label + one Nova Lite alert per burst); ${STATIC || S.mode === "replay" ? "no Bedrock call was made" : "some calls failed"}.` : "");
   setTimeout(() => { if (!S.phoneBusy) $("digest").hidden = false; else waitDigest(); }, 900);
 }
 
