@@ -4,6 +4,8 @@
 
 Built for the AWS Builder Center *Agent Experience Hackathon: Strands Decider*. Tags: `#strands-decider-2b` `#model-routing`.
 
+**Try it in a browser:** https://trytrailgate.vercel.app replays real Decider answers on held-out frames in the ranger console. It is a static replay; running Decider live needs the local setup below.
+
 ![Six held-out Caltech Camera Traps frames, each stamped with the route Trailgate gave it](assets/cover.png)
 
 ## The problem

@@ -3,6 +3,7 @@
 > Camera-trap triage agent. Strands Decider 2B (local, vision, one forward pass) answers three typed questions about every camera-trap frame in one call, and plain Python turns the probabilities into a route: skip (no model, $0), Amazon Nova Lite (Decider confident there is an animal), Amazon Nova Pro (Decider unsure), or a ranger alert (person or vehicle). Built for the AWS Builder Center "Agent Experience Hackathon: Strands Decider". Tags: #strands-decider-2b #model-routing. Licence: Apache-2.0.
 
 Repository: https://github.com/ashutosh887/trailgate
+Demo (static replay of real Decider answers): https://trytrailgate.vercel.app
 Dataset: Caltech Camera Traps, https://lila.science/datasets/caltech-camera-traps (CDLA-Permissive)
 
 ## The decision handed to Decider
