@@ -147,8 +147,8 @@ strands-decider serve StrandsAgents/strands-decider-2B-qwen3.5-v1-2610 --vision 
 
 python scripts/fetch_cct.py                         # tuning, held-out and vehicle frames (seeded)
 python scripts/fetch_bursts.py                      # the rest of each held-out burst
-python -m trailgate run data/images --digest        # triage a folder
-python -m trailgate run data/images --no-bedrock    # Decider routing only
+python -m trailgate run /path/to/card --digest                                   # triage a card, bursts grouped by EXIF time
+python -m trailgate run --manifest data/manifests/heldout_bursts.csv --no-bedrock  # held-out bursts, Decider routing only
 python -m trailgate agent "Process tonight's card in data/images and tell me what needs me"
 python -m trailgate.server                          # ranger console on http://127.0.0.1:8000
 ```
