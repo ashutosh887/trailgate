@@ -40,7 +40,9 @@ if __name__ == "__main__":
     result = agent.tool.describe_image(image_path=sys.argv[1], record_direct_tool_call=False)
     route = router.last_route
     print(result["status"], result["content"][0]["text"])
-    if route:
+    if route and route.decider_error:
+        print(f"tier={route.tier.value} Decider error: {route.decider_error}")
+    elif route:
         print(
             f"tier={route.tier.value} parcel p={route.present:.2f} difficulty={route.difficulty} ({route.latency_ms:.0f} ms)"
         )

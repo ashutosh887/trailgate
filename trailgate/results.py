@@ -13,6 +13,7 @@ class ModelCall:
     cost_usd: float
     text: str = ""
     error: str | None = None
+    priced: bool = True
 
 
 @dataclass
@@ -30,6 +31,7 @@ class FrameResult:
     calls: list[ModelCall] = field(default_factory=list)
     label: str | None = None
     lighting: str | None = None
+    decider_error: str | None = None
 
     @property
     def cost_usd(self) -> float:

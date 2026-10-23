@@ -6,7 +6,9 @@ Before a guarded tool runs, the image argument is routed with one Decider call:
   large     Transform: input[tier_arg] = "large"
   escalate  Transform: input[tier_arg] = "large" and input[escalate_arg] = True
 
-Fails open: if Decider is down or the image is unreadable, the tool runs unchanged.
+Fails open: if Decider raises, the call is transformed to the large tier and the frame is
+recorded in `routes` with `decider_error` set. An image rejected by `precheck` is denied and
+recorded as a skip, so every guarded call shows up in `routes`.
 """
 
 from __future__ import annotations
@@ -51,10 +53,15 @@ class PresenceRouter(InterventionHandler):
 
     def route(self, image: str | Path) -> Route:
         key = str(Path(image).resolve())
-        self.last_route = None
-        if key not in self.routes:
-            self.routes[key] = self.core.route(image)
+        cached = self.routes.get(key)
+        if cached is None or cached.decider_error is not None:
+            self.routes[key] = self.core.try_route(image)
         self.last_route = self.routes[key]
+        return self.last_route
+
+    def reject(self, image: str | Path, problem: str) -> Route:
+        reason = f"code check: {problem}; Decider not asked"
+        self.last_route = self.routes[str(Path(image).resolve())] = Route(Tier.SKIP, 0.0, None, "n/a", 0.0, reason, 0.0)
         return self.last_route
 
     def before_tool_call(self, event: BeforeToolCallEvent, **kwargs: Any) -> Proceed | Deny | Transform:
@@ -64,6 +71,7 @@ class PresenceRouter(InterventionHandler):
         if not image:
             return Proceed(reason=f"no {self.image_arg} argument")
         if self.precheck and (problem := self.precheck(Path(image))):
+            self.reject(image, problem)
             return Deny(reason=f"unusable image, skipped before Decider: {problem}")
         route = self.route(image)
         if route.tier is Tier.SKIP:

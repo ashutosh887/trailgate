@@ -10,6 +10,10 @@ The default policy is a confidence band on P(target). `use_difficulty=True` rest
 v1 policy, where the small tier also needed Decider to call the subject "clear".
 `route_burst` routes the frames of one camera burst together: a frame is skipped only if
 no frame in the burst reaches `skip_below`, and the burst escalates if any frame does.
+
+If Decider fails on a frame, `try_route` returns a `Route` with `decider_error` set and the
+large tier. Its probabilities are placeholders: `decide_burst` leaves it out of the burst
+maxima and keeps it on the large tier.
 """
 
 from __future__ import annotations
@@ -54,6 +58,14 @@ class Route:
     reason: str
     latency_ms: float
     answers: dict = field(default_factory=dict)
+    decider_error: str | None = None
+
+    @classmethod
+    def failed_open(cls, exc: Exception) -> Route:
+        """The large tier for a frame Decider could not answer."""
+        error = f"{type(exc).__name__}: {exc}"
+        reason = f"Decider error ({error}); failing open to the large model"
+        return cls(Tier.LARGE, 0.0, None, "unknown", 0.0, reason, 0.0, decider_error=error)
 
     def to_dict(self) -> dict:
         data = asdict(self)
@@ -125,16 +137,25 @@ class PresenceRouterCore:
         response = self.client.ask(self.questions, [data], self.state)
         return self.decide(response["answers"], (time.perf_counter() - started) * 1000)
 
+    def try_route(self, image: bytes | str | Path) -> Route:
+        try:
+            return self.route(image)
+        except Exception as exc:
+            return Route.failed_open(exc)
+
     def decide_burst(self, routes: list[Route]) -> list[Route]:
-        if not routes:
-            return routes
+        answered = [r for r in routes if r.decider_error is None]
+        if not answered:
+            return [replace(r, tier=Tier.LARGE) for r in routes]
         t = self.thresholds
-        top = max(r.present for r in routes)
-        escalations = [r.escalate for r in routes if r.escalate is not None]
+        top = max(r.present for r in answered)
+        escalations = [r.escalate for r in answered if r.escalate is not None]
         top_escalate = max(escalations) if escalations else None
         out = []
         for r in routes:
-            if top_escalate is not None and top_escalate >= t.escalate_above and r.tier is not Tier.ESCALATE:
+            if r.decider_error is not None:
+                r = replace(r, tier=Tier.LARGE)
+            elif top_escalate is not None and top_escalate >= t.escalate_above and r.tier is not Tier.ESCALATE:
                 r = replace(
                     r, tier=Tier.ESCALATE, reason=f"burst: escalation subject at {top_escalate:.2f} in another frame"
                 )
@@ -148,7 +169,7 @@ class PresenceRouterCore:
         return out
 
     def route_burst(self, images: list[bytes | str | Path]) -> list[Route]:
-        return self.decide_burst([self.route(image) for image in images])
+        return self.decide_burst([self.try_route(image) for image in images])
 
 
 def route(image: bytes | str | Path, **kwargs) -> Route:
