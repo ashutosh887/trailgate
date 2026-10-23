@@ -1,12 +1,16 @@
 """Amazon Bedrock calls for Trailgate: species labels, ranger alerts, the morning digest.
 
 Every call returns a `ModelCall` with tokens, latency and cost. Bedrock errors never
-raise: they come back on `ModelCall.error`, so the pipeline keeps running.
+raise: they come back on `ModelCall.error`, so the pipeline keeps running. A model that
+denies access, has no credentials, is out of quota, or throttles three calls in a row is
+marked unavailable for `UNAVAILABLE_RETRY_S`; calls to it in that window are skipped with
+an error starting `UNAVAILABLE`.
 """
 
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 import threading
@@ -99,9 +103,25 @@ DIGEST_PROMPT = (
     "and each frame that needs the ranger with its note. Plain text, no markdown, no invented facts.\n\nFacts:\n{facts}"
 )
 
+UNAVAILABLE = "unavailable"
 UNAVAILABLE_RETRY_S = 600.0
+THROTTLE_LIMIT = 3
+UNRECOVERABLE_CODES = frozenset(
+    {
+        "AccessDeniedException",
+        "ServiceQuotaExceededException",
+        "UnrecognizedClientException",
+        "ExpiredTokenException",
+        "InvalidSignatureException",
+    }
+)
+THROTTLE_CODES = frozenset({"ThrottlingException"})
+ALERT_OUTPUT_TOKENS = 40
 _unavailable: dict[str, tuple[str, float]] = {}
+_throttles: Counter[str] = Counter()
+_unpriced_warned: set[str] = set()
 _lock = threading.Lock()
+log = logging.getLogger(__name__)
 
 
 def region() -> str:
@@ -119,12 +139,17 @@ def base_model(model_id: str) -> str:
     return re.sub(r"^(us|eu|apac|global|jp|au|ca|us-gov)\.", "", model_id)
 
 
-def price(model_id: str) -> tuple[float, float]:
-    return PRICES.get(base_model(model_id), (0.0, 0.0))
+def price(model_id: str) -> tuple[float, float] | None:
+    """$ per 1k input and output tokens, or None for a model id not in `PRICES`."""
+    found = PRICES.get(base_model(model_id))
+    if found is None and model_id not in _unpriced_warned:
+        _unpriced_warned.add(model_id)
+        log.warning("no Bedrock price for %s; its calls are reported as unpriced ($0 in totals)", model_id)
+    return found
 
 
 def cost(model_id: str, input_tokens: int, output_tokens: int) -> float:
-    per_in, per_out = price(model_id)
+    per_in, per_out = price(model_id) or (0.0, 0.0)
     return input_tokens / 1000 * per_in + output_tokens / 1000 * per_out
 
 
@@ -154,6 +179,25 @@ def baseline_cost(tier: str, width: int = 1024, height: int = 747) -> float:
     return cost(model_for(tier), tokens_in, LABEL_OUTPUT_TOKENS)
 
 
+def tier_cost(tier: str, width: int = 1024, height: int = 747) -> float:
+    """Estimated $ of the label call the pipeline makes for one frame on this tier.
+
+    skip: no call. small: Nova Lite label. large and escalate: Nova Pro label
+    (`Triage(label_escalations=True)`). The ranger alert is written once per escalated
+    burst, not per frame: add `alert_cost` once for each burst that escalates.
+    """
+    tier = getattr(tier, "value", tier)
+    if tier == "skip":
+        return 0.0
+    return baseline_cost("small" if tier == "small" else "large", width, height)
+
+
+def alert_cost(width: int = 1024, height: int = 747) -> float:
+    """Estimated $ of one Nova Lite ranger-alert call on one frame."""
+    tokens_in = estimate_image_tokens(width, height) + estimate_text_tokens(ALERT_PROMPT)
+    return cost(model_for("small"), tokens_in, ALERT_OUTPUT_TOKENS)
+
+
 @lru_cache(maxsize=4)
 def _client(region_name: str) -> Any:
     import boto3
@@ -163,19 +207,43 @@ def _client(region_name: str) -> Any:
     return boto3.client("bedrock-runtime", region_name=region_name, config=config)
 
 
-def _error_text(exc: Exception) -> str:
+def error_code(exc: Exception) -> str:
+    """The botocore error Code, or the exception class name when there is none."""
     response = getattr(exc, "response", None) or {}
-    code = response.get("Error", {}).get("Code") or type(exc).__name__
+    return response.get("Error", {}).get("Code") or type(exc).__name__
+
+
+def error_text(exc: Exception) -> str:
+    response = getattr(exc, "response", None) or {}
     message = response.get("Error", {}).get("Message") or str(exc)
-    return f"{code}: {message}"
+    return f"{error_code(exc)}: {message}"
 
 
-UNRECOVERABLE = ("per day", "accessdenied", "nocredentials", "unable to locate credentials", "expiredtoken")
+def _is_credential_error(exc: Exception) -> bool:
+    from botocore.exceptions import CredentialRetrievalError, NoCredentialsError, PartialCredentialsError
+
+    return isinstance(exc, (NoCredentialsError, PartialCredentialsError, CredentialRetrievalError))
 
 
-def _is_quota_exhausted(error: str) -> bool:
-    lowered = error.lower()
-    return any(marker in lowered for marker in UNRECOVERABLE)
+def _record_failure(model_id: str, exc: Exception, error: str) -> None:
+    code = error_code(exc)
+    with _lock:
+        if code in THROTTLE_CODES:
+            _throttles[model_id] += 1
+            if _throttles[model_id] < THROTTLE_LIMIT:
+                return
+            error = f"{THROTTLE_LIMIT} consecutive throttles; last {error}"
+        elif code not in UNRECOVERABLE_CODES and not _is_credential_error(exc):
+            _throttles[model_id] = 0
+            return
+        _throttles[model_id] = 0
+        _unavailable[model_id] = (error, time.monotonic())
+
+
+def _record_success(model_id: str) -> None:
+    with _lock:
+        _throttles[model_id] = 0
+        _unavailable.pop(model_id, None)
 
 
 def converse(
@@ -189,7 +257,8 @@ def converse(
     with _lock:
         blocked = _unavailable.get(model_id)
     if blocked and time.monotonic() - blocked[1] < UNAVAILABLE_RETRY_S:
-        return ModelCall(model_id, tier, 0, 0, 0.0, 0.0, error=f"skipped, Bedrock unavailable: {blocked[0]}")
+        return ModelCall(model_id, tier, 0, 0, 0.0, 0.0, error=f"{UNAVAILABLE}: {blocked[0]}")
+    priced = price(model_id) is not None
     content: list[dict] = []
     if image is not None:
         content.append({"image": {"format": image_format(image), "source": {"bytes": image}}})
@@ -205,16 +274,17 @@ def converse(
     try:
         response = _client(region()).converse(**request)
     except Exception as exc:
-        error = _error_text(exc)
-        if _is_quota_exhausted(error):
-            with _lock:
-                _unavailable[model_id] = (error, time.monotonic())
-        return ModelCall(model_id, tier, 0, 0, (time.perf_counter() - started) * 1000, 0.0, error=error)
+        error = error_text(exc)
+        _record_failure(model_id, exc, error)
+        latency_ms = (time.perf_counter() - started) * 1000
+        return ModelCall(model_id, tier, 0, 0, latency_ms, 0.0, error=error, priced=priced)
+    _record_success(model_id)
     latency = response.get("metrics", {}).get("latencyMs") or (time.perf_counter() - started) * 1000
     usage = response.get("usage", {})
     tokens_in, tokens_out = int(usage.get("inputTokens", 0)), int(usage.get("outputTokens", 0))
     text = "".join(block.get("text", "") for block in response["output"]["message"]["content"]).strip()
-    return ModelCall(model_id, tier, tokens_in, tokens_out, float(latency), cost(model_id, tokens_in, tokens_out), text)
+    spent = cost(model_id, tokens_in, tokens_out)
+    return ModelCall(model_id, tier, tokens_in, tokens_out, float(latency), spent, text, priced=priced)
 
 
 def normalise_species(raw: str) -> str | None:
@@ -281,6 +351,7 @@ def digest_facts(results: Iterable[FrameResult]) -> dict:
         "large": tiers.get("large", 0),
         "species": dict(species.most_common()),
         "escalations": escalations,
+        "decider_errors": sum(1 for r in rows if r.decider_error),
         "cost_usd": round(sum(r.cost_usd for r in rows), 6),
     }
 
@@ -299,6 +370,8 @@ def plain_digest(facts: dict) -> str:
             "Seen: " + ", ".join(f"{name.replace('_', ' ')} x{n}" for name, n in facts["species"].items()) + "."
         )
     lines.extend(f"Check {e['frame']}: {e['note']}" for e in facts["escalations"])
+    if facts["decider_errors"]:
+        lines.append(f"Decider failed on {facts['decider_errors']} frames; they went to the large model.")
     lines.append(f"Bedrock spend: ${facts['cost_usd']:.4f}.")
     return "\n".join(lines)
 
