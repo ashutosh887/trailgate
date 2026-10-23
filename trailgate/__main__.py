@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from collections import Counter
 from pathlib import Path
@@ -27,30 +28,61 @@ def load_bursts(args: argparse.Namespace) -> list:
         bursts = group_bursts(find_frames(args.paths), args.burst_gap)
     if args.no_bursts:
         bursts = [
-            Burst([p], [label], [light])
+            Burst([p], [label], [light], dated=b.dated)
             for b in bursts
             for p, label, light in zip(b.paths, b.labels, b.lightings, strict=True)
         ]
     return bursts[: args.limit] if args.limit else bursts
 
 
+def is_unavailable(call) -> bool:
+    return bool(call.error) and call.error.startswith(nova.UNAVAILABLE)
+
+
+def species_cell(r) -> str:
+    errors = [c for c in r.calls if c.error]
+    if r.species or not errors:
+        return r.species or "-"
+    return nova.UNAVAILABLE if all(map(is_unavailable, errors)) else "error"
+
+
 def print_result(r) -> None:
-    escalate = f"{r.escalate:.2f}" if r.escalate is not None else "  - "
-    species = r.species or ("-" if not r.calls else "error")
-    print(f"{r.tier:<8} p={r.present:.2f} e={escalate} {r.difficulty:<5} {species:<14} ${r.cost_usd:.5f}  {r.frame}")
-    if r.difficulty in ("unknown", "n/a"):
-        print(f"         {r.reason}")
-    elif r.reason.startswith("burst:"):
+    if r.decider_error:
+        scores = "Decider error    "
+    else:
+        escalate = f"{r.escalate:.2f}" if r.escalate is not None else "  - "
+        scores = f"p={r.present:.2f} e={escalate}"
+    spend = f"${r.cost_usd:.5f}" + ("" if all(c.priced for c in r.calls) else " unpriced")
+    print(f"{r.tier:<8} {scores} {r.difficulty:<5} {species_cell(r):<14} {spend}  {r.frame}")
+    if r.difficulty in ("unknown", "n/a") or r.reason.startswith("burst:"):
         print(f"         {r.reason}")
     if r.alert:
         print(f"         alert: {r.alert}")
     for call in r.calls:
-        if call.error:
+        if call.error and not is_unavailable(call):
             print(f"         {call.model_id}: {call.error[:110]}")
 
 
+def print_summary(results: list) -> None:
+    tiers = Counter(r.tier for r in results)
+    calls = [c for r in results for c in r.calls]
+    spent = sum(c.cost_usd for c in calls)
+    unpriced = sum(not c.priced for c in calls)
+    print("\n" + ", ".join(f"{tier} {tiers.get(tier, 0)}" for tier in ("skip", "small", "large", "escalate")))
+    failed = sum(1 for r in results if r.decider_error)
+    if failed:
+        print(f"Decider error on {failed} frames; sent to the large model")
+    for model, n in Counter(c.model_id for c in calls if is_unavailable(c)).items():
+        print(f"Bedrock unavailable for {model}: {n} calls skipped")
+    print(
+        f"Bedrock spend ${spent:.5f}" + (f" ({unpriced} calls unpriced)" if unpriced else "") + "; "
+        f"Nova Lite on every frame ~${nova.baseline_cost('small') * len(results):.5f}, "
+        f"Nova Pro on every frame ~${nova.baseline_cost('large') * len(results):.5f} (estimate, {nova.IMAGE_TOKENS_SOURCE})"
+    )
+
+
 def run(args: argparse.Namespace) -> int:
-    from .pipeline import Triage
+    from .pipeline import Triage, missing_frames
 
     if not args.paths and not args.manifest:
         print("give image paths or --manifest", file=sys.stderr)
@@ -59,6 +91,16 @@ def run(args: argparse.Namespace) -> int:
     if not bursts:
         print("no images found", file=sys.stderr)
         return 1
+    missing = missing_frames([p for b in bursts for p in b.paths])
+    if missing:
+        shown = "\n  ".join(map(str, missing[:5])) + ("\n  ..." if len(missing) > 5 else "")
+        print(f"{len(missing)} frames not found:\n  {shown}", file=sys.stderr)
+        return 1
+    undated = sum(len(b.paths) for b in bursts if not b.dated)
+    if undated:
+        print(f"warning: {undated} frames have no EXIF capture time; each is routed as its own burst", file=sys.stderr)
+    if args.no_bedrock and not args.no_alerts and os.environ.get("TRAILGATE_ALERT_TOPIC_ARN"):
+        print("--no-bedrock: alerts go to the local outbox only; SNS is not published", file=sys.stderr)
     triage = Triage(bedrock=not args.no_bedrock, notify=not args.no_alerts)
     t = triage.thresholds
     n_frames = sum(len(b.paths) for b in bursts)
@@ -81,23 +123,29 @@ def run(args: argparse.Namespace) -> int:
     finally:
         if out:
             out.close()
-    tiers = Counter(r.tier for r in results)
-    spent = sum(r.cost_usd for r in results)
-    print("\n" + ", ".join(f"{tier} {tiers.get(tier, 0)}" for tier in ("skip", "small", "large", "escalate")))
-    print(
-        f"Bedrock spend ${spent:.5f}; Nova Lite on every frame ~${nova.baseline_cost('small') * len(results):.5f}, "
-        f"Nova Pro on every frame ~${nova.baseline_cost('large') * len(results):.5f} (estimate, {nova.IMAGE_TOKENS_SOURCE})"
-    )
+    print_summary(results)
     if args.digest:
         print("\n" + nova.write_digest(results))
     return 0
 
 
 def agent(args: argparse.Namespace) -> int:
-    from .agent import build_agent
+    from botocore.exceptions import BotoCoreError, ClientError
+    from strands.types.exceptions import ModelThrottledException
+
+    from .agent import agent_model_id, build_agent
 
     trailgate_agent, _ = build_agent()
-    print(trailgate_agent(args.prompt))
+    try:
+        print(trailgate_agent(args.prompt))
+    except (ClientError, BotoCoreError, ModelThrottledException) as exc:
+        detail = nova.error_text(exc)
+        print(
+            f"The agent's model {agent_model_id()} is not available on Bedrock ({detail[:200]}).\n"
+            "The deterministic pipeline needs no agent model: python -m trailgate run <folder> (add --no-bedrock to skip Bedrock)",
+            file=sys.stderr,
+        )
+        return 1
     return 0
 
 
@@ -115,7 +163,9 @@ def main(argv: list[str] | None = None) -> int:
     p_run.add_argument("--burst-gap", type=float, default=10.0, help="seconds between frames of one burst (default 10)")
     p_run.add_argument("--no-bursts", action="store_true", help="route every frame on its own")
     p_run.add_argument("--limit", type=int, help="process only the first N bursts")
-    p_run.add_argument("--no-bedrock", action="store_true", help="Decider routing only; no Bedrock calls")
+    p_run.add_argument(
+        "--no-bedrock", action="store_true", help="Decider routing only; no Bedrock calls and no SNS (outbox only)"
+    )
     p_run.add_argument("--no-alerts", action="store_true", help="do not write or publish ranger alerts")
     p_run.add_argument("--json", metavar="OUT", help="write one FrameResult per line to this JSONL file")
     p_run.add_argument("--digest", action="store_true", help="print the morning digest at the end")

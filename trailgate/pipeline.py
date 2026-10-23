@@ -38,8 +38,15 @@ def find_frames(paths: list[str | Path]) -> list[Path]:
     return found
 
 
+def missing_frames(paths: list[str | Path]) -> list[Path]:
+    return [Path(p) for p in paths if not Path(p).is_file()]
+
+
 class Triage:
-    """Route each frame to skip, small, large or escalate, and call Bedrock only where the tier needs it."""
+    """Route each frame to skip, small, large or escalate, and call Bedrock only where the tier needs it.
+
+    With `bedrock=False` no AWS call is made: alerts go to the local outbox, not to SNS.
+    """
 
     def __init__(
         self,
@@ -59,11 +66,7 @@ class Triage:
         return self.router.thresholds
 
     def route(self, data: bytes) -> Route:
-        try:
-            return self.router.route(data)
-        except Exception as exc:
-            reason = f"Decider unavailable ({type(exc).__name__}); failing open to the large model"
-            return Route(Tier.LARGE, 0.5, None, "unknown", 0.0, reason, 0.0)
+        return self.router.try_route(data)
 
     def run(self, path: str | Path, label: str | None = None, lighting: str | None = None) -> FrameResult:
         return self.run_burst([path], [label], [lighting])[0]
@@ -77,8 +80,12 @@ class Triage:
         """Route every frame of one camera burst, apply the burst rule, then call Bedrock per frame by tier.
 
         A frame is skipped only if no frame in the burst reaches `skip_below`; if any frame
-        escalates, the whole burst escalates and the ranger gets one alert for it.
+        escalates, the whole burst escalates and the ranger gets one alert for it. A frame
+        Decider fails on goes to the large tier and does not move its siblings.
+        Raises FileNotFoundError if any path is not a file.
         """
+        if missing := missing_frames(paths):
+            raise FileNotFoundError(f"{len(missing)} frames not found: {', '.join(map(str, missing))}")
         labels = labels or [None] * len(paths)
         lightings = lightings or [None] * len(paths)
         checks = [frames.check(p) for p in paths]
@@ -122,6 +129,7 @@ class Triage:
             route.latency_ms,
             label=label,
             lighting=lighting,
+            decider_error=route.decider_error,
         )
 
     def _burst_alert(self, result: FrameResult, path: str, image: bytes, route: Route, size: int) -> None:
@@ -141,4 +149,4 @@ class Triage:
     def _alert(self, result: FrameResult, path: str, text: str) -> None:
         result.alert = text
         if self.notify:
-            send_alert(path, text, result.present, result.escalate)
+            send_alert(path, text, result.present, result.escalate, publish=self.bedrock)

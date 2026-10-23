@@ -1,13 +1,14 @@
 """The conversational layer: a Strands agent that works through a memory card with PresenceRouter in front of its tools.
 
-"Process tonight's card and tell me what needs me." The agent lists the frames, asks for
-a species label on each, and PresenceRouter decides per call: empty frames are denied
-before any model runs, the rest get the right-sized Nova model, people and vehicles are
-flagged for alert_ranger.
+This agent routes each frame on its own; it does not apply the burst rule. The burst rule
+(skip a frame only if no frame in its burst reaches skip_below, one alert per escalated
+burst) lives in `Triage.run_burst`, which `python -m trailgate run` uses.
 
-The agent routes frame by frame. The burst rule (skip a frame only if no frame in its
-burst reaches skip_below, one alert per escalated burst) lives in `Triage.run_burst`,
-which `python -m trailgate run` uses with frames grouped by `trailgate.bursts`.
+"Process tonight's card and tell me what needs me." The agent lists the frames, asks for
+a species label on each, and PresenceRouter decides per call: empty and unusable frames
+are denied before any model runs, the rest get the right-sized Nova model, people and
+vehicles are flagged for alert_ranger, and frames Decider fails on go to the large model.
+The agent itself needs a Bedrock chat model (`TRAILGATE_AGENT_MODEL`).
 """
 
 from __future__ import annotations
@@ -62,6 +63,7 @@ class CardSession:
                     species_confidence=label.get("confidence"),
                     alert=self.alerts.get(path),
                     calls=label.get("calls", []),
+                    decider_error=route.decider_error,
                 )
             )
         return rows
@@ -148,12 +150,13 @@ def build_tools(session: CardSession) -> list:
     return [list_frames, archive_empty, label_species, alert_ranger, daily_digest]
 
 
+def agent_model_id() -> str:
+    return os.environ.get("TRAILGATE_AGENT_MODEL", DEFAULT_AGENT_MODEL)
+
+
 def build_agent(core: PresenceRouterCore | None = None) -> tuple[Agent, CardSession]:
     session = CardSession(build_router(core))
-    model = BedrockModel(
-        model_id=os.environ.get("TRAILGATE_AGENT_MODEL", DEFAULT_AGENT_MODEL),
-        region_name=nova.region(),
-    )
+    model = BedrockModel(model_id=agent_model_id(), region_name=nova.region())
     agent = Agent(
         model=model,
         tools=build_tools(session),

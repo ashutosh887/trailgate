@@ -16,7 +16,9 @@ def send_alert(
     present: float | None = None,
     escalate: float | None = None,
     source: str = "pipeline",
+    publish: bool = True,
 ) -> dict:
+    """Append the alert to the outbox; also publish it to SNS when `publish` and a topic is configured."""
     record = {
         "at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "frame": frame,
@@ -28,7 +30,7 @@ def send_alert(
         "sns_error": None,
     }
     topic = os.environ.get("TRAILGATE_ALERT_TOPIC_ARN")
-    if topic:
+    if topic and publish:
         record.update(_publish(topic, record))
     OUTBOX.mkdir(parents=True, exist_ok=True)
     with open(OUTBOX / "alerts.jsonl", "a") as fh:

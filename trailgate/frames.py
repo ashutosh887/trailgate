@@ -39,8 +39,8 @@ def open_image(data: bytes) -> Image.Image:
 
 
 def is_infrared(img: Image.Image) -> bool:
-    small = img.convert("RGB").resize((64, 48))
-    spread = [max(p) - min(p) for p in small.getdata()]
+    raw = img.convert("RGB").resize((64, 48)).tobytes()
+    spread = [max(p) - min(p) for p in zip(raw[0::3], raw[1::3], raw[2::3], strict=True)]
     return sum(spread) / len(spread) < IR_CHANNEL_SPREAD
 
 
