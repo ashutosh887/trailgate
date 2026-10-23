@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="620" viewBox="0 0 1200 620" font-family="Inter, -apple-system, Segoe UI, Helvetica, Arial, sans-serif">
+  <rect width="1200" height="620" fill="#0d1512"/>
+  <defs>
+    <marker id="a" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#7d8f86"/>
+    </marker>
+  </defs>
+  <text x="48" y="58" fill="#e8efe9" font-size="26" font-weight="700">Trailgate</text>
+  <text x="48" y="86" fill="#93a59b" font-size="15">One Decider call per frame decides whether any model sees it, which one, or whether a ranger does.</text>
+
+  <rect x="48" y="250" width="170" height="110" rx="12" fill="#15211c" stroke="#2a3b33"/>
+  <text x="133" y="292" fill="#e8efe9" font-size="17" font-weight="600" text-anchor="middle">Camera-trap</text>
+  <text x="133" y="314" fill="#e8efe9" font-size="17" font-weight="600" text-anchor="middle">frame</text>
+  <text x="133" y="340" fill="#93a59b" font-size="13" text-anchor="middle">day or infrared</text>
+
+  <rect x="262" y="250" width="170" height="110" rx="12" fill="#15211c" stroke="#2a3b33"/>
+  <text x="347" y="290" fill="#e8efe9" font-size="16" font-weight="600" text-anchor="middle">Frame check</text>
+  <text x="347" y="314" fill="#93a59b" font-size="13" text-anchor="middle">decodable, not blank</text>
+  <text x="347" y="334" fill="#93a59b" font-size="13" text-anchor="middle">plain code</text>
+
+  <rect x="476" y="170" width="300" height="270" rx="14" fill="#13261e" stroke="#7fd99a" stroke-width="2"/>
+  <text x="626" y="206" fill="#7fd99a" font-size="18" font-weight="700" text-anchor="middle">Strands Decider 2B</text>
+  <text x="626" y="228" fill="#93a59b" font-size="13" text-anchor="middle">local, vision, one forward pass, no text generated</text>
+  <rect x="498" y="248" width="256" height="50" rx="8" fill="#0d1512" stroke="#2a3b33"/>
+  <text x="512" y="270" fill="#e8efe9" font-size="13" font-weight="600">present</text>
+  <text x="512" y="288" fill="#93a59b" font-size="12">noul · Is there an animal anywhere…?</text>
+  <rect x="498" y="306" width="256" height="50" rx="8" fill="#0d1512" stroke="#2a3b33"/>
+  <text x="512" y="328" fill="#e8efe9" font-size="13" font-weight="600">escalate</text>
+  <text x="512" y="346" fill="#93a59b" font-size="12">noul · Is there a person or a vehicle…?</text>
+  <rect x="498" y="364" width="256" height="50" rx="8" fill="#0d1512" stroke="#2a3b33"/>
+  <text x="512" y="386" fill="#e8efe9" font-size="13" font-weight="600">difficulty</text>
+  <text x="512" y="404" fill="#93a59b" font-size="12">choice · clear | hard</text>
+
+  <rect x="900" y="120" width="252" height="76" rx="12" fill="#2a1416" stroke="#ff6b6b" stroke-width="2"/>
+  <text x="918" y="152" fill="#ff8a8a" font-size="16" font-weight="700">ESCALATE</text>
+  <text x="918" y="176" fill="#e8efe9" font-size="13">ranger alert, frame attached</text>
+
+  <rect x="900" y="216" width="252" height="76" rx="12" fill="#15211c" stroke="#56606a"/>
+  <text x="918" y="248" fill="#c3ccd4" font-size="16" font-weight="700">SKIP</text>
+  <text x="918" y="272" fill="#e8efe9" font-size="13">no model called · $0</text>
+
+  <rect x="900" y="312" width="252" height="76" rx="12" fill="#15211c" stroke="#7fd99a"/>
+  <text x="918" y="344" fill="#7fd99a" font-size="16" font-weight="700">SMALL · Nova Lite</text>
+  <text x="918" y="368" fill="#e8efe9" font-size="13">clear animal → species label</text>
+
+  <rect x="900" y="408" width="252" height="76" rx="12" fill="#15211c" stroke="#e5c07b"/>
+  <text x="918" y="440" fill="#e5c07b" font-size="16" font-weight="700">LARGE · Nova Pro</text>
+  <text x="918" y="464" fill="#e8efe9" font-size="13">dark, small, hidden or unsure</text>
+
+  <line x1="218" y1="305" x2="258" y2="305" stroke="#7d8f86" stroke-width="2" marker-end="url(#a)"/>
+  <line x1="432" y1="305" x2="472" y2="305" stroke="#7d8f86" stroke-width="2" marker-end="url(#a)"/>
+  <path d="M776,305 C840,305 840,158 896,158" fill="none" stroke="#7d8f86" stroke-width="2" marker-end="url(#a)"/>
+  <path d="M776,305 C840,305 840,254 896,254" fill="none" stroke="#7d8f86" stroke-width="2" marker-end="url(#a)"/>
+  <path d="M776,305 C840,305 840,350 896,350" fill="none" stroke="#7d8f86" stroke-width="2" marker-end="url(#a)"/>
+  <path d="M776,305 C840,305 840,446 896,446" fill="none" stroke="#7d8f86" stroke-width="2" marker-end="url(#a)"/>
+
+  <text x="826" y="512" fill="#93a59b" font-size="13">thresholds frozen on a separate tuning set</text>
+
+  <rect x="48" y="524" width="1104" height="72" rx="12" fill="#15211c" stroke="#2a3b33"/>
+  <text x="70" y="553" fill="#e8efe9" font-size="14"><tspan font-weight="700">Strands agent</tspan><tspan fill="#93a59b">  ·  tools: archive_empty · label_species(model_tier) · alert_ranger · daily_digest</tspan></text>
+  <text x="70" y="578" fill="#93a59b" font-size="14"><tspan fill="#7fd99a" font-weight="700">PresenceRouter</tspan>  ·  an InterventionHandler on label_species: Deny skips the frame, Transform sets the model tier</text>
+</svg>
