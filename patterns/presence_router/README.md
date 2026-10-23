@@ -4,10 +4,12 @@ A Strands intervention for agents that send images to an expensive model. Before
 
 | Tier | When | What happens |
 |---|---|---|
-| `skip` | target probability below `skip_below` | `Deny`: the tool never runs and no model is called |
-| `small` | target at or above `small_above` and clearly visible | `Transform`: `model_tier="small"` |
-| `large` | anything in between, or hard to see | `Transform`: `model_tier="large"` |
-| `escalate` | escalation subject at or above `escalate_above` | `Transform`: `model_tier="large"`, `escalate=True` |
+| `escalate` | P(escalation subject) at or above `escalate_above` | `Transform`: `model_tier="large"`, `escalate=True` |
+| `skip` | P(target) below `skip_below` | `Deny`: the tool never runs and no model is called |
+| `small` | P(target) at or above `small_above` | `Transform`: `model_tier="small"` |
+| `large` | anything in between: Decider is unsure | `Transform`: `model_tier="large"` |
+
+The tiers are a confidence band on one probability. Decider is also asked how hard the subject is to see, but on camera-trap frames it called 84% of held-out frames "hard" and P(hard) separated night from day with AUC 0.67, so the default policy does not route on it. `Thresholds(use_difficulty=True)` restores the earlier policy, where `small` also needed a "clear" answer.
 
 All the questions go to Decider in one call, so the image is encoded once. A batch of questions about the same image costs about the same as one question.
 
@@ -24,7 +26,9 @@ From `questions.py`, with `target="an animal"` and `escalate="a person or a vehi
   "difficulty": {"type": "choice", "instructions": "How easy is the subject to see?",
                  "criteria": {"clear": "the subject is large, lit and in focus",
                               "hard": "the subject is small, dark, blurred, infrared or partly hidden"}},
-  "escalate": {"type": "noul", "instructions": "Is there a person or a vehicle in this photo?"},
+  "escalate": {"type": "noul", "instructions": "Is there a person or a vehicle in this photo?",
+               "criteria": {"true": "a person, car, truck, motorbike or other vehicle, or part of one, is visible",
+                            "false": "only animals, vegetation, ground, sky, or camera artefacts"}},
 }
 ```
 
@@ -52,9 +56,13 @@ The router reads the image path from `image_path` and writes the tier to `model_
 
 Without Strands, call `PresenceRouterCore(...).route(path)` directly and get the same `Route` back.
 
+## Bursts
+
+Camera traps fire in bursts of 1 to 5 frames, and an animal is often in only one of them. `core.route_burst([frame1, frame2, frame3])` routes each frame with its own Decider call, then applies burst context: a frame is skipped only if no frame in the burst reaches `skip_below`, and every frame escalates if any frame does. `core.decide_burst(routes)` does the same on routes you already have. Asking one multi-image call per burst was faster (p50 621 ms against 1,473 ms for one call per frame) and agreed with max-over-frames on all 29 multi-frame tuning bursts at the skip threshold, but those bursts held only one empty burst, too few to show it separates empty from animal as well, so it is not the default.
+
 ## Set thresholds from your own images
 
-The defaults (`skip_below=0.35`, `small_above=0.90`, `escalate_above=0.50`) are a starting point. Label about 50 of your own images, from cameras or sources you will not evaluate on, then run:
+The defaults (`skip_below=0.35`, `small_above=0.90`, `escalate_above=0.50`) are a starting point; Trailgate's own frozen values are in `results/thresholds.json`. Label about 50 of your own images, from cameras or sources you will not evaluate on, then run:
 
 ```bash
 python -m patterns.presence_router.tune_questions --manifest your_labels.csv --negative empty

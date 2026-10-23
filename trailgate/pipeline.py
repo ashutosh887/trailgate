@@ -22,8 +22,8 @@ def load_thresholds(path: Path = THRESHOLDS_FILE) -> Thresholds:
     if not path.exists():
         return Thresholds()
     data = json.loads(path.read_text())
-    known = {f.name for f in fields(Thresholds)}
-    return Thresholds(**{k: float(v) for k, v in data.items() if k in known})
+    types = {f.name: f.type for f in fields(Thresholds)}
+    return Thresholds(**{k: (bool(v) if types[k] in (bool, "bool") else float(v)) for k, v in data.items() if k in types})
 
 
 def find_frames(paths: list[str | Path]) -> list[Path]:
