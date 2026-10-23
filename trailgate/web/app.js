@@ -7,21 +7,21 @@ const thumbOf = (n) => (STATIC ? "thumbs/" : "/thumb/") + n;
 const cards = new Map();
 const S = {
   status: null, mode: "replay", reel: null, frames: [], rows: new Map(), es: null, running: false,
-  pinned: null, current: null, queue: [], phoneBusy: false, bedrock: null, total: {},
+  pinned: null, current: null, queue: [], phoneBusy: false, total: {},
 };
-const ACTION = { skip: "Empty", small: "Label", large: "Label", escalate: "Alert" };
-const notCalled = () => (STATIC || S.mode === "replay" ? "not called in this replay" : "Bedrock unavailable");
+const STAMP = { skip: "Skipped", small: "Nova Lite", large: "Nova Pro", escalate: "Alert" };
+const BADGE = { small: "Lite", large: "Pro", escalate: "Alert" };
 const usd = (v) => "$" + (v < 1 ? v.toFixed(4) : v.toFixed(2));
 const int = (v) => Math.round(v).toLocaleString("en-US");
-const pct = (v) => (v == null ? "—" : v.toFixed(2));
+const pct = (v) => (v == null ? "" : v.toFixed(2));
 const el = (tag, cls, html) => { const n = document.createElement(tag); if (cls) n.className = cls; if (html != null) n.innerHTML = html; return n; };
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const title = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
+const replaying = () => STATIC || S.mode === "replay";
 
 async function boot() {
   S.status = await (await fetch(STATIC ? "data/status.json" : "/api/status")).json();
-  if (STATIC) $("static-note").hidden = false;
-  S.mode = params.get("mode") || S.status.mode;
+  S.mode = STATIC ? "replay" : params.get("mode") || S.status.mode;
   if (S.mode === "replay" && !S.status.replay.frames) S.mode = "live";
   renderReels();
   renderModes();
@@ -30,57 +30,43 @@ async function boot() {
   $("run").addEventListener("click", () => (S.running ? stop() : start()));
   $("digest-x").addEventListener("click", () => ($("digest").hidden = true));
   $("ph-acts").addEventListener("click", onAct);
+  $("pin").addEventListener("click", () => S.pinned != null && pin(S.pinned));
 }
 
 function renderReels() {
   const box = $("reels");
   box.innerHTML = "";
   for (const r of S.status.reels) {
-    const b = el("button", "", `${esc(r.name)}<small>${r.size}</small>`);
+    const b = el("button", "", esc(r.name));
     b.type = "button";
     b.dataset.id = r.id;
+    b.title = `${r.size} frames`;
     b.addEventListener("click", () => !S.running && loadReel(r.id));
     box.append(b);
   }
 }
 
 function renderModes() {
-  for (const b of $("modes").querySelectorAll("button")) {
+  const st = S.status;
+  const modes = $("modes");
+  modes.hidden = STATIC;
+  for (const b of modes.querySelectorAll("button")) {
     b.setAttribute("aria-pressed", String(b.dataset.mode === S.mode));
-    if (b.dataset.mode === "replay") b.disabled = !S.status.replay.frames;
-    if (b.dataset.mode === "live" && STATIC) { b.disabled = true; b.title = "Live needs a local Decider server: see README"; }
+    if (b.dataset.mode === "replay") b.disabled = !st.replay.frames;
     b.onclick = () => { if (!S.running && S.mode !== b.dataset.mode) { S.mode = b.dataset.mode; renderModes(); loadReel(S.reel.id); } };
   }
-  const st = S.status;
-  const dec = $("pill-decider");
-  if (S.mode === "live") {
-    dec.className = "pill " + (st.decider.reachable ? "live" : "down");
-    dec.querySelector("em").textContent = st.decider.reachable ? "live · " + st.decider.url.replace(/^https?:\/\//, "") : "offline";
-    $("hint").textContent = st.decider.reachable
-      ? "Live: each frame runs with its whole camera burst, one Decider call per burst frame, then Bedrock; cost shown per burst"
-      : "Decider is not reachable; start it or switch to Replay";
-    setPill("pill-source", "", st.record ? "recording → " + st.record : "live run, not recorded");
-  } else {
-    dec.className = "pill replay";
-    dec.querySelector("em").textContent = "replay";
-    $("hint").textContent = "Replay · real Decider answers, v2 burst policy · sped up for viewing, latencies are real";
-    setPill("pill-source", "", (st.replay.path || "—").split("/").pop());
-  }
-  if (st.setup) $("hint").textContent = st.setup;
-  setBedrock(null);
-}
-
-function setPill(id, cls, text) {
-  const p = $(id);
-  p.className = "pill " + (cls || "quiet");
-  p.querySelector("em").textContent = text;
-}
-
-function setBedrock(state) {
-  S.bedrock = state;
-  if (state === "live") setPill("pill-bedrock", "live", "live");
-  else if (state === "queued") setPill("pill-bedrock", "warn", STATIC ? "not called · estimated" : "unavailable · calls queued");
-  else setPill("pill-bedrock", "warn", STATIC ? "not called · estimated" : S.mode === "replay" ? "from cache" : "waiting");
+  const chip = $("chip");
+  const live = S.mode === "live";
+  const down = live && !st.decider.reachable;
+  chip.className = "chip " + (down ? "down" : live ? "live" : "replay");
+  $("chip-text").textContent = down ? "Decider offline" : live ? "Live" : "Replay";
+  chip.title = live ? (st.decider.url || "") + (st.record ? ` · recording to ${st.record}` : "") : "Recorded Decider answers";
+  const hint = st.setup || (down ? "Start the Decider or switch to Replay." : "");
+  $("hint").textContent = hint;
+  $("hint").hidden = !hint;
+  $("fine").textContent = replaying()
+    ? "Replay of recorded Decider answers. Bedrock costs are estimates."
+    : "Live Decider calls. Costs marked est. are estimates.";
 }
 
 async function loadReel(id) {
@@ -89,10 +75,6 @@ async function loadReel(id) {
   S.frames = data.frames;
   for (const b of $("reels").querySelectorAll("button")) b.setAttribute("aria-pressed", String(b.dataset.id === S.reel.id));
   reset();
-  const cams = new Set(S.frames.map((f) => f.location)).size;
-  const night = S.frames.filter((f) => f.lighting === "night_ir").length;
-  $("card-title").textContent = `${S.reel.name} · last night`;
-  $("card-meta").textContent = `${S.frames.length} frames · ${cams} cameras · ${night} night IR · Caltech Camera Traps`;
   const grid = $("grid");
   grid.innerHTML = "";
   grid.style.setProperty("--cols", S.frames.length > 63 ? 10 : 9);
@@ -101,10 +83,12 @@ async function loadReel(id) {
     t.dataset.state = "pending";
     t.dataset.i = f.index;
     t.tabIndex = 0;
-    t.innerHTML = `<div class="face"><img src="${f.thumb}" alt="" loading="eager"><span class="idx">${String(f.index + 1).padStart(2, "0")} · ${esc(f.clock)}</span><span class="tag"><span class="sp"></span><span class="md"></span></span></div>`;
+    t.setAttribute("aria-label", `Camera ${f.location}, ${f.clock}`);
+    t.innerHTML = `<div class="face"><img src="${f.thumb}" alt="" loading="eager"><span class="clock">${esc(f.clock)}</span><span class="tag"><span class="sp"></span><span class="md"></span></span></div>`;
     t.addEventListener("mouseenter", () => inspect(f.index));
     t.addEventListener("mouseleave", () => inspect(S.pinned ?? S.current));
     t.addEventListener("click", () => pin(f.index));
+    t.addEventListener("keydown", (e) => { if (e.key === "Enter") pin(f.index); });
     grid.append(t);
   }
   $("c-total").textContent = S.frames.length;
@@ -139,19 +123,18 @@ function reset() {
   S.queue = [];
   S.current = null;
   S.pinned = null;
-  S.total = { seen: 0, skip: 0, small: 0, large: 0, escalate: 0, spent: 0, est: 0, base: 0, lite: 0, calls: 0, frames: 0 };
+  S.total = { seen: 0, skip: 0, small: 0, large: 0, escalate: 0, spent: 0, est: 0, base: 0, lite: 0, frames: 0 };
+  clearInterval(S.digestTimer);
   $("digest").hidden = true;
+  $("pin").hidden = true;
   hidePhone(true);
   updateLedger();
-  $("pin").textContent = "following";
-  $("pin").className = "pin";
   for (const t of document.querySelectorAll(".tile")) { t.dataset.state = "pending"; t.classList.remove("selected"); t.removeAttribute("title"); }
 }
 
 function start() {
   if (!S.frames.length || S.status.setup) return;
   reset();
-  for (const t of document.querySelectorAll(".tile")) t.dataset.state = "pending";
   if (STATIC) { setRunning(true); playStatic(); return; }
   const q = new URLSearchParams({ id: S.reel.id, mode: S.mode });
   if (params.get("pace")) q.set("pace", params.get("pace"));
@@ -171,13 +154,14 @@ function stop() {
   S.es = null;
   setRunning(false);
   for (const t of document.querySelectorAll('.tile[data-state="deciding"]')) t.dataset.state = "pending";
-  $("lens").classList.remove("busy");
+  inspect(S.pinned ?? S.current);
 }
 
 function setRunning(on) {
   S.running = on;
   $("run").classList.toggle("going", on);
-  $("run-label").textContent = on ? "Stop" : S.rows.size ? "Run again" : "Run the card";
+  $("run-label").textContent = on ? "Stop" : S.rows.size ? "Run again" : "Run";
+  for (const b of document.querySelectorAll("#reels button, #modes button")) b.classList.toggle("locked", on);
 }
 
 function tile(i) { return document.querySelector(`.tile[data-i="${i}"]`); }
@@ -204,12 +188,8 @@ function onFrame(row) {
   T.est += costing.estimated_usd;
   T.base += costing.baseline_usd;
   T.lite += costing.baseline_lite_usd;
-  T.calls += costing.lines.length;
   T.frames += costing.frames;
   updateLedger(result.tier);
-
-  if (costing.lines.some((l) => !l.estimated)) setBedrock("live");
-  else if (costing.lines.length && S.bedrock !== "live") setBedrock("queued");
 
   if (S.pinned == null) inspect(index);
   if (result.tier === "escalate") queueAlert(row);
@@ -218,7 +198,7 @@ function onFrame(row) {
 function onFailed({ index, error }) {
   const t = tile(index);
   t.dataset.state = "failed";
-  t.querySelector(".sp").textContent = "decider error";
+  t.querySelector(".md").textContent = "Error";
   t.title = error;
   S.total.seen += 1;
   updateLedger();
@@ -227,14 +207,8 @@ function onFailed({ index, error }) {
 function paintTile(t, row) {
   const r = row.result;
   t.dataset.state = r.tier;
-  const sp = t.querySelector(".sp");
-  const md = t.querySelector(".md");
-  md.className = "md";
-  if (r.tier === "skip") { sp.textContent = "$0 · no model"; md.textContent = ""; return; }
-  if (r.tier === "escalate") { sp.textContent = "Alert"; md.textContent = "ranger"; t.title = row.model; return; }
-  md.textContent = r.tier === "small" ? "Lite" : "Pro";
-  if (r.species) sp.textContent = title(r.species);
-  else { sp.textContent = ""; md.classList.add("queued"); t.title = `${row.model} · ${notCalled()} · est. ${usd(row.costing.estimated_usd)}`; }
+  t.querySelector(".sp").textContent = r.tier !== "escalate" && r.species ? title(r.species) : "";
+  t.querySelector(".md").textContent = BADGE[r.tier] || "";
 }
 
 function bump(id) {
@@ -253,26 +227,21 @@ function updateLedger(tier) {
   $("c-alert").textContent = T.escalate || 0;
   if (tier) bump({ skip: "c-empty", small: "c-lite", large: "c-pro", escalate: "c-alert" }[tier]);
   const spent = T.spent + T.est;
-  const est = T.est > 0 ? " est." : "";
+  const est = !replaying() && T.est > 0 ? " est." : "";
   $("c-spent").textContent = usd(spent) + est;
-  $("c-lite-all").textContent = usd(T.lite) + " est.";
-  $("c-pro-all").textContent = usd(T.base) + " est.";
-  $("c-calls").textContent = `${int(T.calls)} Bedrock calls${est} vs ${int(T.frames)} with Nova on every frame`;
-  $("c-ratio").textContent = T.base > 0
-    ? `${Math.round((1 - spent / T.base) * 100)}% under Pro · ${(spent / (T.lite || 1)).toFixed(1)}× Lite`
-    : "Bedrock costs estimated";
+  $("c-pro-all").textContent = usd(T.base);
+  $("c-lite-all").textContent = usd(T.lite);
   const full = (T.base / (T.frames || 1)) * Math.max(S.frames.length, T.frames) || 1;
   $("bar-spent").style.width = Math.min(100, (spent / full) * 100) + "%";
-  $("bar-lite").style.width = Math.min(100, (T.lite / full) * 100) + "%";
   $("bar-pro").style.width = Math.min(100, (T.base / full) * 100) + "%";
+  $("bar-lite").style.width = Math.min(100, (T.lite / full) * 100) + "%";
 }
 
 function pin(i) {
   S.pinned = S.pinned === i ? null : i;
   for (const t of document.querySelectorAll(".tile.selected")) t.classList.remove("selected");
   if (S.pinned != null) tile(i).classList.add("selected");
-  $("pin").textContent = S.pinned != null ? "pinned · click again to follow" : "following";
-  $("pin").className = "pin" + (S.pinned != null ? " on" : "");
+  $("pin").hidden = S.pinned == null;
   inspect(S.pinned ?? S.current);
 }
 
@@ -284,20 +253,19 @@ function inspect(i) {
   lens.className = "lens";
   if (!f) {
     img.removeAttribute("src");
-    $("lens-cam").textContent = "cam —";
-    $("lens-clock").textContent = "--:--";
-    $("lens-light").textContent = "";
+    for (const id of ["lens-cam", "lens-clock", "lens-truth"]) $(id).textContent = "";
     renderQs(null);
+    renderBurst(null);
     setVerdict(null);
     return;
   }
   if (img.getAttribute("src") !== f.full) img.src = f.full;
-  $("lens-cam").textContent = `cam ${f.location}`;
+  $("lens-cam").textContent = `Cam ${f.location}`;
   $("lens-clock").textContent = f.clock;
-  $("lens-light").textContent = `truth: ${f.label}${f.audit ? " (audit: " + f.audit + ")" : ""} · ${f.lighting === "night_ir" ? "night IR" : "day"}`;
+  $("lens-truth").textContent = `Truth: ${f.audit ? f.audit + " (audited)" : f.label}`;
   const deciding = !row && tile(i)?.dataset.state === "deciding";
   if (deciding) lens.classList.add("busy");
-  if (row) lens.classList.add({ escalate: "alert", large: "pro", skip: "skip" }[row.result.tier] || "x");
+  if (row) lens.classList.add({ escalate: "alert", large: "pro", skip: "skip" }[row.result.tier] || "lite");
   renderQs(row ? row.result : null, deciding);
   renderBurst(row ? row.result : null, f);
   setVerdict(row, f, deciding);
@@ -305,14 +273,13 @@ function inspect(i) {
 
 function renderBurst(r, f) {
   const box = $("burst");
-  const frames = (r && r.burst) || null;
-  if (!f || f.burst.length < 2) { box.innerHTML = `<span class="k">burst</span><span class="b-none">single frame</span>`; return; }
-  const items = frames || f.burst.map((n) => ({ file_name: n, self: n === f.file_name, thumb: thumbOf(n) }));
+  if (!f || f.burst.length < 2) { box.hidden = true; box.innerHTML = ""; return; }
+  const items = (r && r.burst) || f.burst.map((n) => ({ file_name: n, self: n === f.file_name, thumb: thumbOf(n) }));
   const th = S.status.thresholds;
-  box.innerHTML = `<span class="k">burst · ${items.length}</span>` + items.map((b) => {
+  box.hidden = false;
+  box.innerHTML = `<span class="k">Burst</span>` + items.map((b) => {
     const hot = b.escalate != null && b.escalate >= th.escalate_above;
-    const p = b.present != null ? pct(b.present) : "…";
-    return `<span class="bf${b.self ? " self" : ""}${hot ? " hot" : ""}"><img src="${b.thumb}" alt=""><b>${p}</b></span>`;
+    return `<span class="bf${b.self ? " self" : ""}${hot ? " hot" : ""}" title="Animal ${pct(b.present)}"><img src="${b.thumb}" alt=""><b>${b.present != null ? pct(b.present) : ""}</b></span>`;
   }).join("");
 }
 
@@ -321,26 +288,37 @@ function answerOf(r, key) {
   return a[key] || {};
 }
 
+function meter(v, ticks) {
+  return `<span class="meter"><span style="width:${(v || 0) * 100}%"></span>${ticks.map((t) => `<i style="left:${t * 100}%"></i>`).join("")}</span>`;
+}
+
 function renderQs(r, deciding) {
+  const box = $("qs");
+  if (!r && !deciding) { box.hidden = true; return; }
   const q = S.status.questions;
   const th = S.status.thresholds;
-  const box = $("qs");
   const present = r ? r.present : null;
   const escl = r ? r.escalate : null;
   const diff = r ? r.difficulty : null;
   const dconf = r ? (r.difficulty_confidence ?? answerOf(r, "difficulty").confidence) : null;
-  const probs = answerOf(r, "difficulty").probabilities || {};
-  const wait = deciding ? "…" : "—";
+  const wait = `<span class="qv wait">…</span>`;
+  const hot = escl != null && escl >= th.escalate_above;
+  box.hidden = false;
   box.innerHTML = `
-    <div class="q"><span class="qt"><small>present · noul · P(animal)</small>${esc(q.present.instructions)}</span>
-      <span class="qv">${present == null ? wait : pct(present)}</span>
-      <span class="meter"><span style="width:${(present || 0) * 100}%"></span><i style="left:${th.skip_below * 100}%" data-t="skip <${th.skip_below}"></i><i style="left:${th.small_above * 100}%" data-t="Lite ≥${th.small_above}"></i></span></div>
-    <div class="q esc"><span class="qt"><small>escalate · noul · P(person/vehicle)</small>${esc(q.escalate.instructions)}</span>
-      <span class="qv ${escl != null && escl >= th.escalate_above ? "hot" : ""}">${escl == null ? wait : pct(escl)}</span>
-      <span class="meter"><span style="width:${(escl || 0) * 100}%"></span><i style="left:${th.escalate_above * 100}%" data-t="alert ≥${th.escalate_above}"></i></span></div>
-    <div class="q diff"><span class="qt"><small>difficulty · choice</small>${esc(title(S.status.difficulty_note))}</span>
-      <span class="qv">${dconf == null ? "" : "conf " + pct(dconf)}</span>
-      <div class="opts">${Object.keys(q.difficulty.criteria).map((k) => `<span class="opt ${k} ${diff === k ? "on" : ""}"><em style="width:${(probs[k] || 0) * 100}%"></em><span>${k}</span><b>${probs[k] != null ? pct(probs[k]) : ""}</b></span>`).join("")}</div></div>`;
+    <div class="q" title="${esc(q.present.instructions)} Skip below ${th.skip_below}, Nova Lite from ${th.small_above}."><span class="ql">Animal</span>${meter(present, [th.skip_below, th.small_above])}${present == null ? wait : `<span class="qv">${pct(present)}</span>`}</div>
+    <div class="q esc${hot ? " hot" : ""}" title="${esc(q.escalate.instructions)} Alert from ${th.escalate_above}."><span class="ql">Person or vehicle</span>${meter(escl, [th.escalate_above])}${escl == null ? wait : `<span class="qv">${pct(escl)}</span>`}</div>
+    <div class="q diff" title="${esc(q.difficulty.instructions)} ${esc(title(S.status.difficulty_note))}."><span class="ql">Difficulty</span><span class="dv">${diff ? esc(title(diff)) + (dconf != null ? ` <small>${pct(dconf)}</small>` : "") : ""}</span><span class="qv">not used</span></div>`;
+}
+
+function reasonOf(r) {
+  const th = S.status.thresholds;
+  const raw = r.reason || "";
+  if (raw.startsWith("burst:")) return "Another frame in the burst looks like an animal.";
+  if (r.tier === "skip" && r.present != null) return `Animal ${pct(r.present)}, under ${th.skip_below}. No model called.`;
+  if (r.tier === "small" && r.present != null) return `Animal ${pct(r.present)}. Decider is sure.`;
+  if (r.tier === "large" && r.present != null) return `Animal ${pct(r.present)}. Decider is unsure.`;
+  if (r.tier === "escalate" && r.escalate != null) return `Person or vehicle ${pct(r.escalate)}. Sent to the ranger.`;
+  return title(raw);
 }
 
 function setVerdict(row, f, deciding) {
@@ -348,39 +326,38 @@ function setVerdict(row, f, deciding) {
   const calls = $("callrow");
   calls.innerHTML = "";
   if (!row) {
+    stamp.hidden = !deciding;
     stamp.className = "stamp";
-    stamp.textContent = deciding ? "Deciding" : "Pending";
-    $("route").textContent = deciding ? "One Decider call, three typed questions, one frame." : "Press Run. Each frame gets one Decider call with three typed questions.";
-    $("reason").textContent = f ? `CCT ground truth: ${f.label}` : "";
+    stamp.textContent = "Deciding";
+    $("reason").textContent = deciding ? "" : !f ? "" : S.running ? "Waiting" : S.rows.size ? "Not decided" : "Press Run";
     return;
   }
   const r = row.result;
-  if (stamp.dataset.k !== `${row.index}`) { stamp.classList.remove("land"); void stamp.offsetWidth; stamp.classList.add("land"); }
+  stamp.hidden = false;
+  if (stamp.dataset.k !== `${row.index}`) { stamp.classList.remove("land"); void stamp.offsetWidth; }
   stamp.dataset.k = row.index;
   stamp.className = "stamp land " + r.tier;
-  stamp.textContent = ACTION[r.tier] || r.tier;
-  $("route").textContent = {
-    skip: "Archived. No model was called.",
-    small: "Nova Lite · Decider confident there is an animal.",
-    large: "Nova Pro · Decider unsure, so the stronger model looks.",
-    escalate: `Person or vehicle → straight to the ranger's phone · ${row.model}.`,
-  }[r.tier];
-  $("reason").textContent = r.reason;
+  stamp.textContent = STAMP[r.tier] || r.tier;
+  $("reason").textContent = reasonOf(r);
 
-  calls.append(el("div", "call", `<span class="who dec">Decider 2B</span><span>3 questions · <b>$0</b> local</span><span class="num">${int(r.decider_latency_ms || 0)} ms</span>`));
+  calls.append(el("div", "call", `<span>Decider 2B</span><span class="num">${int(r.decider_latency_ms || 0)} ms</span>`));
   const c = row.costing;
-  if (c.frames > 1) calls.append(el("div", "call burst", `<span class="who off">Burst</span><span>burst of ${c.frames} frames · ${c.lines.length} Bedrock calls</span><span class="num">${usd(c.actual_usd + c.estimated_usd)}${c.estimated_usd ? " est." : ""}</span>`));
+  const groups = new Map();
   for (const l of c.lines) {
-    const self = l.frame === r.frame;
-    const what = l.kind === "alert" ? "ranger alert" : self && r.species ? `<b>${esc(title(r.species))}</b>${r.species_confidence ? " · " + esc(r.species_confidence) : ""}` : self ? "species label" : "label · burst frame";
-    const cls = l.model === "Nova Pro" ? "pro" : "lite";
-    if (l.estimated) {
-      const n = el("div", "call queued", `<span class="who off">${esc(l.model)}</span><span>${what} · ${notCalled()}</span><span class="num">${usd(l.usd)} est.</span>`);
-      if (l.error) n.title = l.error;
-      calls.append(n);
-    } else {
-      calls.append(el("div", "call", `<span class="who ${cls}">${esc(l.model)}</span><span>${what}</span><span class="num">${usd(l.usd)} · ${int(l.latency_ms || 0)} ms</span>`));
-    }
+    const key = `${l.model}|${l.kind}|${l.estimated}`;
+    const g = groups.get(key) || { ...l, n: 0, usd: 0, latency: 0 };
+    g.n += 1;
+    g.usd += l.usd;
+    g.latency = Math.max(g.latency, l.latency_ms || 0);
+    groups.set(key, g);
+  }
+  for (const g of groups.values()) {
+    const what = g.kind === "alert" ? "alert" : r.species && g.n === 1 ? esc(title(r.species)) : "label";
+    const est = g.estimated && !replaying() ? " est." : "";
+    const ms = g.estimated ? "" : ` · ${int(g.latency)} ms`;
+    const n = el("div", "call" + (g.model === "Nova Pro" ? " pro" : " lite"), `<span>${esc(g.model)} ${what}${g.n > 1 ? ` ×${g.n}` : ""}</span><span class="num">${usd(g.usd)}${est}${ms}</span>`);
+    if (g.error) n.title = g.error;
+    calls.append(n);
   }
 }
 
@@ -397,10 +374,9 @@ function nextAlert() {
   const f = row.meta;
   const r = row.result;
   $("ph-time").textContent = f.clock || "--:--";
-  $("ph-title").textContent = `Person or vehicle at camera ${f.location}, ${f.clock}`;
+  $("ph-title").textContent = `Person or vehicle at camera ${f.location}`;
   $("ph-img").src = f.full;
-  $("ph-text").textContent = r.alert || `Decider is ${Math.round((r.escalate || 0) * 100)}% sure a person or vehicle is in frame. Alert sent with the frame attached; the Nova Lite note is not written in this replay.`;
-  $("ph-meta").textContent = `${f.captured} · ${f.lighting === "night_ir" ? "night IR" : "daylight"} · decided in ${int(r.decider_latency_ms || 0)} ms`;
+  $("ph-text").textContent = r.alert || `Decider is ${Math.round((r.escalate || 0) * 100)}% sure. ${f.lighting === "night_ir" ? "Night IR" : "Daylight"}, decided in ${int(r.decider_latency_ms || 0)} ms.`;
   $("ph-done").hidden = true;
   $("ph-acts").hidden = false;
   for (const b of $("ph-acts").querySelectorAll("button")) { b.disabled = false; b.classList.remove("tapped"); }
@@ -424,17 +400,17 @@ async function onAct(e) {
   if (!b || !row || b.disabled) return;
   for (const x of $("ph-acts").querySelectorAll("button")) x.disabled = true;
   b.classList.add("tapped");
-  let note = "";
-  if (STATIC) note = recordLocal(b.dataset.act, row);
+  let ok = true;
+  if (STATIC) recordLocal(b.dataset.act, row);
   else try {
     const res = await fetch("/api/action", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: b.dataset.act, frame: row.meta.file_name, alert: row.result.alert, escalate: row.result.escalate, mode: S.mode }),
     });
-    note = res.ok ? " · logged to outbox/actions.jsonl" : " · not logged";
-  } catch { note = " · not logged"; }
+    ok = res.ok;
+  } catch { ok = false; }
   const done = $("ph-done");
-  done.textContent = (b.dataset.act === "dispatch_patrol" ? "Patrol dispatched to camera " + row.meta.location : "Marked as known staff") + note;
+  done.textContent = (b.dataset.act === "dispatch_patrol" ? "Patrol dispatched to camera " + row.meta.location : "Marked as known staff") + (ok ? "" : ". Not logged.");
   done.hidden = false;
   $("ph-acts").hidden = true;
   setTimeout(() => {
@@ -450,25 +426,27 @@ function recordLocal(act, row) {
     const log = JSON.parse(localStorage.getItem(key) || "[]");
     log.push({ at: new Date().toISOString(), action: act, frame: row.meta.file_name, camera: row.meta.location, escalate: row.result.escalate });
     localStorage.setItem(key, JSON.stringify(log.slice(-200)));
-    return " · saved in this browser only (static demo)";
-  } catch { return " · static demo, not saved"; }
+  } catch { return; }
 }
 
 function showDigest(d) {
-  $("dg-line").innerHTML = `${d.frames} frames: <span class="n-empty">${d.empty} empty skipped</span>, <span class="n-lab">${d.labelled} labelled</span>, <span class="n-alert">${d.alerts} for you</span>.`;
+  $("dg-line").innerHTML = `${d.frames} frames. <span class="n-empty">${d.empty} skipped</span>, <span class="n-lab">${d.labelled} labelled</span>, <span class="n-alert">${d.alerts} for you</span>.`;
   const sp = Object.entries(d.species).sort((a, b) => b[1] - a[1]);
   $("dg-species").innerHTML = sp.length
     ? sp.map(([k, v]) => `<li>${esc(title(k))}<b>${v}</b></li>`).join("")
-    : `<li class="none">${d.lite} to Nova Lite, ${d.pro} to Nova Pro; species labels ${STATIC || S.mode === "replay" ? "are not generated in this replay" : "missing while Bedrock is unavailable"}.</li>`;
-  $("dg-alerts").innerHTML = d.alert_frames.map((f) => `<figure><img src="${f.thumb}" alt=""><figcaption><b>cam ${esc(f.location)}</b> · ${esc(f.clock)}</figcaption></figure>`).join("") || `<p class="dg-note mono">Nothing for you tonight.</p>`;
+    : `<li class="lite">Nova Lite<b>${d.lite}</b></li><li class="pro">Nova Pro<b>${d.pro}</b></li>`;
+  $("dg-alerts").innerHTML = d.alert_frames.map((f) => `<figure><img src="${f.thumb}" alt=""><figcaption>Cam ${esc(f.location)}, ${esc(f.clock)}</figcaption></figure>`).join("") || `<p class="dg-note">Nothing tonight.</p>`;
   const saved = d.baseline_usd ? Math.round((1 - d.spent_usd / d.baseline_usd) * 100) : 0;
-  $("dg-cost").innerHTML = `<b>${usd(d.spent_usd)}</b> <span class="vs">vs Pro ${usd(d.baseline_usd)} · Lite ${usd(d.baseline_lite_usd)}</span>`;
-  $("dg-note").textContent = `${saved}% less than Nova Pro on every frame; ${(d.spent_usd / (d.baseline_lite_usd || 1)).toFixed(1)}× Nova Lite on every frame (estimates). ${d.empty} frames never reached a model. Decider p50 ${d.decider_p50_ms ? int(d.decider_p50_ms) + " ms" : "—"}, run locally.` + (S.total.est > 0 ? ` Bedrock spend is estimated from token counts (${d.alerts} alerts: Nova Pro label + one Nova Lite alert per burst); ${STATIC || S.mode === "replay" ? "no Bedrock call was made" : "some calls failed"}.` : "");
-  setTimeout(() => { if (!S.phoneBusy) $("digest").hidden = false; else waitDigest(); }, 900);
+  $("dg-cost").innerHTML = `<b>${usd(d.spent_usd)}</b><span class="vs">vs ${usd(d.baseline_usd)} with Nova Pro on every frame</span>`;
+  $("dg-note").textContent = `${saved}% less. Decider p50 ${d.decider_p50_ms ? int(d.decider_p50_ms) + " ms" : "n/a"}.`;
+  S.digestTimer = setTimeout(waitDigest, 900);
 }
 
 function waitDigest() {
-  const iv = setInterval(() => { if (!S.phoneBusy && !S.queue.length) { clearInterval(iv); $("digest").hidden = false; } }, 500);
+  const ready = () => !S.phoneBusy && !S.queue.length && !S.running;
+  clearInterval(S.digestTimer);
+  if (ready()) { $("digest").hidden = false; return; }
+  S.digestTimer = setInterval(() => { if (ready()) { clearInterval(S.digestTimer); $("digest").hidden = false; } }, 500);
 }
 
 function onKey(e) {
