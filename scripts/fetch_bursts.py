@@ -4,7 +4,8 @@ CCT labels whole sequences, so a frame labelled "deer" can be the one after the 
 For each manifest frame this writes all frames of its sequence (the frame itself included)
 to data/<name>_bursts.csv with seq_id, frame_num, seq_num_frames and anchor.
 
-    .venv/bin/python scripts/fetch_bursts.py heldout tune
+    .venv/bin/python scripts/fetch_bursts.py            # heldout and tune
+    .venv/bin/python scripts/fetch_bursts.py heldout
 """
 
 from __future__ import annotations
@@ -19,7 +20,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from fetch_cct import DATA, fetch, is_infrared, load_labels
+from fetch_cct import DATA, fetch, lighting, load_labels
 
 FIELDS = [
     "id",
@@ -71,7 +72,7 @@ def burst_rows(labels: dict, manifest: list[dict]) -> list[dict]:
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("names", nargs="+")
+    ap.add_argument("names", nargs="*", default=["heldout", "tune"], help="manifests in data/ (default: heldout tune)")
     args = ap.parse_args()
     labels = load_labels()
     images = DATA / "images"
@@ -83,7 +84,7 @@ def main() -> None:
         with ThreadPoolExecutor(8) as pool:
             list(pool.map(lambda r: fetch(r, images), todo))
         for r in rows:
-            r["lighting"] = "night_ir" if is_infrared(images / r["file_name"]) else "day"
+            r["lighting"] = lighting(images / r["file_name"])
         with open(DATA / f"{name}_bursts.csv", "w", newline="") as fh:
             w = csv.DictWriter(fh, fieldnames=FIELDS)
             w.writeheader()

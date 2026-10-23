@@ -3,7 +3,8 @@
 Splits are made by camera location, so no camera that informed question
 wording or thresholds appears in the held-out set:
 
-  tune     80 frames from 20 tuning locations, natural label mix
+  tune     80 frames drawn from a pool of 20 tuning locations, natural label mix
+           (the sample lands on 13 of them)
   heldout  600 frames from the remaining locations, natural label mix
   vehicle  40 frames labelled `car` from the held-out locations
 
@@ -18,6 +19,7 @@ import csv
 import io
 import json
 import random
+import sys
 import urllib.request
 import zipfile
 from collections import defaultdict
@@ -26,6 +28,11 @@ from pathlib import Path
 
 from PIL import Image
 
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+
+from trailgate import frames
+
 LABELS_URL = (
     "https://storage.googleapis.com/public-datasets-lila/caltechcameratraps/labels/caltech_camera_traps.json.zip"
 )
@@ -33,7 +40,6 @@ IMAGE_MIRRORS = (
     "https://storage.googleapis.com/public-datasets-lila/caltech-unzipped/cct_images/{}",
     "https://lilawildlife.blob.core.windows.net/lila-wildlife/caltech-unzipped/cct_images/{}",
 )
-ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "data"
 SEED = 2610
 
@@ -101,10 +107,9 @@ def fetch(frame: dict, out: Path) -> None:
     img.save(path, "JPEG", quality=90)
 
 
-def is_infrared(path: Path) -> bool:
-    img = Image.open(path).convert("RGB").resize((64, 48))
-    spread = [max(p) - min(p) for p in img.get_flattened_data()]
-    return sum(spread) / len(spread) < 4
+def lighting(path: Path) -> str:
+    with Image.open(path) as img:
+        return "night_ir" if frames.is_infrared(img) else "day"
 
 
 def main() -> None:
@@ -127,8 +132,7 @@ def main() -> None:
             w = csv.DictWriter(fh, fieldnames=["id", "file_name", "label", "location", "captured", "lighting"])
             w.writeheader()
             for f in rows:
-                lighting = "night_ir" if is_infrared(images / f["file_name"]) else "day"
-                w.writerow({**f, "lighting": lighting})
+                w.writerow({**f, "lighting": lighting(images / f["file_name"])})
         empty = sum(f["label"] == "empty" for f in rows)
         print(f"{name}: {len(rows)} frames, {empty} empty, {len({f['location'] for f in rows})} locations")
 

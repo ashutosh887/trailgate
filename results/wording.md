@@ -25,20 +25,3 @@ Positives: car, human, person, truck, vehicle (n=5). Negatives: all other frames
 | `e_human_activity`: Is there any sign of people in this photo: a person, a vehicle, or headlights? | yes | 1.000 | 0.70 / 0.12 | 100.0% (0.50) | 100.0% | 100.0% | 0.50 | 100.0% |
 
 p50 Decider wall time for this 9-question call: 1528 ms.
-
-### Frozen
-
-```json
-{
-  "skip_below": 0.37,
-  "small_above": 0.62,
-  "escalate_above": 0.54,
-  "chosen_wording": "p_criteria",
-  "chosen_escalate_wording": "e_criteria",
-  "method": "Tuning set only. Wording: highest AUC (escalation ties broken by the widest gap between classes). skip_below: highest 0.01 grid value with zero tuning animals scoring below it (miss budget 0; lowest animal score 0.376). small_above: midpoint of the gap between the highest-scoring empty frame Decider called clear (0.347) and the lowest-scoring clear animal frame above it (0.888). escalate_above: midpoint of the gap between the highest non-person/vehicle frame (0.332) and the lowest person/vehicle frame (0.741), labels audited by eye where CCT marks people as empty.",
-  "n_tune": 80,
-  "n_tune_animal": 43,
-  "n_tune_empty": 32,
-  "n_tune_person_or_vehicle": 5
-}
-```

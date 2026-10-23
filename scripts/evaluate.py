@@ -42,7 +42,6 @@ TIERS = [t.value for t in Tier]
 LIGHTINGS = ["day", "night_ir"]
 LIGHT_NAME = {"all": "All", "day": "Day", "night_ir": "Night (infrared)"}
 SWEEP = [round(i * 0.01, 2) for i in range(0, 101)]
-ALERT_OUTPUT_TOKENS = 40
 POLICY_NAMES = {
     "v1": "v1: difficulty-gated tiers, per frame (as committed)",
     "v2_frame": "v2 band only: confidence band on P(animal), per frame (ablation, v2 thresholds)",
@@ -119,16 +118,17 @@ def frame_rows(rows: list[dict], cache: dict, kind: str) -> list[dict]:
 
 
 def route_all(rows: list[dict], t: Thresholds, burst: bool) -> list[str]:
+    """Tier per row as the pipeline routes it: code-check failures skip before Decider and the burst rule."""
     core = PresenceRouterCore(thresholds=t, client=DeciderClient())
-    routes = [core.decide(r["answers"], r["latency_ms"]) for r in rows]
+    routes = {i: core.decide(r["answers"], r["latency_ms"]) for i, r in enumerate(rows) if not r["check"]}
     if burst:
         groups = defaultdict(list)
-        for i, r in enumerate(rows):
-            groups[r["seq_id"]].append(i)
+        for i in routes:
+            groups[rows[i]["seq_id"]].append(i)
         for idx in groups.values():
-            for i, route in zip(idx, core.decide_burst([routes[i] for i in idx]), strict=False):
+            for i, route in zip(idx, core.decide_burst([routes[i] for i in idx]), strict=True):
                 routes[i] = route
-    return [Tier.SKIP.value if r["check"] else route.tier.value for r, route in zip(rows, routes, strict=False)]
+    return [routes[i].tier.value if i in routes else Tier.SKIP.value for i in range(len(rows))]
 
 
 def summary(fs: list[dict]) -> dict:
@@ -277,14 +277,17 @@ def dataset_stats() -> dict | None:
 
 
 def frame_costs(f: dict, tier: str) -> dict:
+    """Per-frame cost; an escalated frame carries one alert here (the pipeline writes one alert per burst)."""
     w, h = f["width"], f["height"]
-    lite = nova.baseline_cost("small", w, h)
-    pro = nova.baseline_cost("large", w, h)
-    alert_in = nova.estimate_image_tokens(w, h) + nova.estimate_text_tokens(nova.ALERT_PROMPT)
-    alert = nova.cost(nova.model_for("small"), alert_in, ALERT_OUTPUT_TOKENS)
-    routed = {"skip": 0.0, "small": lite, "large": pro, "escalate": alert + pro}[tier]
-    gated_lite = {"skip": 0.0, "small": lite, "large": lite, "escalate": alert + lite}[tier]
-    return {"lite": lite, "pro": pro, "routed": routed, "gated_lite": gated_lite}
+    alert = nova.alert_cost(w, h) if tier == "escalate" else 0.0
+    routed = nova.tier_cost(tier, w, h) + alert
+    gated_lite = (nova.tier_cost("small", w, h) if tier != "skip" else 0.0) + alert
+    return {
+        "lite": nova.tier_cost("small", w, h),
+        "pro": nova.tier_cost("large", w, h),
+        "routed": routed,
+        "gated_lite": gated_lite,
+    }
 
 
 def cost_model(fs: list[dict]) -> dict:

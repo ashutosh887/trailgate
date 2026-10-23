@@ -6,12 +6,12 @@ image is encoded once. Answers are cached to a JSONL file and the run resumes.
 
     python -m patterns.presence_router.tune_questions \
         --manifest data/tune.csv --negative empty --ignore car,person \
-        --escalate-positive car,person --freeze results/thresholds.json
+        --escalate-positive car,person
 
 A frame counts as a positive for presence when its label is in --positive, or, when
 --positive is empty, when its label is not in --negative. Labels in --ignore are left out
-of the presence scores. --audit applies hand-checked relabels (file_name, audited_label).
---freeze writes the chosen wording and thresholds to results/thresholds.json.
+of the presence scores. --audit applies hand-checked relabels (file_name, audited_label). Trailgate's frozen
+thresholds are derived from these cached answers by scripts/freeze_thresholds.py.
 """
 
 from __future__ import annotations
@@ -123,7 +123,7 @@ def ask_all(
     signature = question_signature(questions, state)
     cache = load_cache(cache_path, signature)
     cache_path.parent.mkdir(parents=True, exist_ok=True)
-    todo = [r for r in rows if r["file_name"] not in cache]
+    todo = list({r["file_name"]: r for r in rows if r["file_name"] not in cache}.values())
     with open(cache_path, "a") as out:
         for i, r in enumerate(todo, 1):
             data = (images / r["file_name"]).read_bytes()
@@ -261,41 +261,31 @@ def apply_audit(rows: list[dict], path: Path, label_col: str) -> int:
     return changed
 
 
-def freeze(rows, cache, label_col, positive, negative, ignore, esc_positive, presence, escalation, step=0.01) -> dict:
-    """Pick wordings by AUC (ties: more negatives skipped at zero misses) and set thresholds by fixed rules."""
-    p_best = max(presence, key=lambda r: (r["auc"], r["neg_below_zero_miss"]))
-    e_best = max(escalation, key=lambda r: (r["auc"], (r["min_pos"] or 0) - r["max_neg"]))
-    pk, ek = p_best["wording"], e_best["wording"]
-    pos, neg = split_scores(rows, cache, pk, label_col, positive, negative, ignore)
-    skip_below = zero_miss_threshold(pos, 0, step)
-    clear = [
-        (score_of(cache[r["file_name"]]["answers"], pk), is_positive(r[label_col], positive, negative))
-        for r in rows
-        if r[label_col] not in ignore and cache[r["file_name"]]["answers"]["difficulty"]["choice"] == "clear"
-    ]
-    clear_neg = max((s for s, p in clear if not p), default=0.0)
-    clear_pos = min((s for s, p in clear if p and s > clear_neg), default=1.0)
-    small_above = max(skip_below, round((clear_neg + clear_pos) / 2, 2))
-    epos, eneg = split_scores(rows, cache, ek, label_col, esc_positive, set())
-    escalate_above = round((max(eneg) + min(epos)) / 2, 2)
-    return {
-        "skip_below": round(skip_below, 2),
-        "small_above": small_above,
-        "escalate_above": escalate_above,
-        "chosen_wording": pk,
-        "chosen_escalate_wording": ek,
-        "method": (
-            f"Tuning set only. Wording: highest AUC (escalation ties broken by the widest gap between classes). skip_below: highest {step} grid value with zero tuning animals scoring below it "
-            f"(miss budget 0; lowest animal score {min(pos):.3f}). small_above: midpoint of the gap between the highest-scoring "
-            f"empty frame Decider called clear ({clear_neg:.3f}) and the lowest-scoring clear animal frame above it ({clear_pos:.3f}). "
-            f"escalate_above: midpoint of the gap between the highest non-person/vehicle frame ({max(eneg):.3f}) and the lowest "
-            f"person/vehicle frame ({min(epos):.3f}), labels audited by eye where CCT marks people as empty."
-        ),
-        "n_tune": len(rows),
-        "n_tune_animal": len(pos),
-        "n_tune_empty": len(neg),
-        "n_tune_person_or_vehicle": len(epos),
-    }
+def score_wordings(
+    rows: list[dict],
+    cache: dict,
+    label_col: str,
+    positive: set[str],
+    negative: set[str],
+    ignore: set[str],
+    esc_positive: set[str],
+    ref_skip: float = 0.35,
+    ref_escalate: float = 0.5,
+) -> tuple[list[dict], list[dict]]:
+    """One `wording_row` per presence wording and per escalation wording."""
+    presence = []
+    for name, q in PRESENCE_WORDINGS.items():
+        pos, neg = split_scores(rows, cache, name, label_col, positive, negative, ignore)
+        presence.append(wording_row(name, q, pos, neg, ref_skip))
+    escalation = []
+    for name, q in ESCALATE_WORDINGS.items():
+        pos, neg = split_scores(rows, cache, name, label_col, esc_positive, set())
+        r = wording_row(name, q, pos, neg, ref_escalate)
+        r["max_neg"] = round(max(neg), 4)
+        r["min_pos"] = round(min(pos), 4) if pos else None
+        r["false_alerts_at_ref"] = sum(n >= ref_escalate for n in neg)
+        escalation.append(r)
+    return presence, escalation
 
 
 def main(argv=None) -> dict:
@@ -308,7 +298,6 @@ def main(argv=None) -> dict:
     ap.add_argument("--ignore", default="car,person", help="labels left out of presence scoring")
     ap.add_argument("--escalate-positive", default="car,person,human,vehicle,truck")
     ap.add_argument("--audit", default=str(ROOT / "results/label_audit.csv"))
-    ap.add_argument("--freeze", default="", help="write thresholds JSON here")
     ap.add_argument("--ref-skip", type=float, default=0.35, help="reference skip threshold for recall")
     ap.add_argument("--ref-escalate", type=float, default=0.5)
     ap.add_argument("--cache", default=str(ROOT / "results/tune_answers.jsonl"))
@@ -325,18 +314,9 @@ def main(argv=None) -> dict:
     print(f"{len(rows)} frames, {len(questions)} questions per call", file=sys.stderr)
     cache = ask_all(rows, questions, Path(args.cache), Path(args.images))
 
-    presence = []
-    for name, q in PRESENCE_WORDINGS.items():
-        pos, neg = split_scores(rows, cache, name, args.label_col, positive, negative, ignore)
-        presence.append(wording_row(name, q, pos, neg, args.ref_skip))
-    escalation = []
-    for name, q in ESCALATE_WORDINGS.items():
-        pos, neg = split_scores(rows, cache, name, args.label_col, esc_positive, set())
-        escalation.append(wording_row(name, q, pos, neg, args.ref_escalate))
-        r = escalation[-1]
-        r["max_neg"] = round(max(neg), 4)
-        r["min_pos"] = round(min(pos), 4) if pos else None
-        r["false_alerts_at_ref"] = sum(n >= args.ref_escalate for n in neg)
+    presence, escalation = score_wordings(
+        rows, cache, args.label_col, positive, negative, ignore, esc_positive, args.ref_skip, args.ref_escalate
+    )
     latencies = sorted(cache[r["file_name"]]["wall_latency_ms"] for r in rows)
 
     pos_name = ", ".join(sorted(positive)) if positive else f"any label except {', '.join(sorted(negative))}"
@@ -369,11 +349,6 @@ def main(argv=None) -> dict:
         "",
         f"p50 Decider wall time for this {len(questions)}-question call: {result['decider_wall_latency_ms_p50']:.0f} ms.",
     ]
-    if args.freeze:
-        frozen = freeze(rows, cache, args.label_col, positive, negative, ignore, esc_positive, presence, escalation)
-        Path(args.freeze).write_text(json.dumps(frozen, indent=2))
-        result["frozen"] = frozen
-        md += ["", "### Frozen", "", "```json", json.dumps(frozen, indent=2), "```"]
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.with_suffix(".json").write_text(json.dumps(result, indent=2))
