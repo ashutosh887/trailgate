@@ -58,7 +58,7 @@ function renderModes() {
   } else {
     dec.className = "pill replay";
     dec.querySelector("em").textContent = "replay";
-    $("hint").textContent = `Replay: recorded Decider answers, paced for viewing · ${st.replay.frames} frames on file`;
+    $("hint").textContent = "Replay · real Decider answers, v2 burst policy · sped up for viewing, latencies are real";
     setPill("pill-source", "", (st.replay.path || "—").split("/").pop());
   }
   setBedrock(null);
@@ -110,7 +110,7 @@ function reset() {
   S.queue = [];
   S.current = null;
   S.pinned = null;
-  S.total = { seen: 0, skip: 0, small: 0, large: 0, escalate: 0, spent: 0, est: 0, base: 0, tokens: 0, tokEst: 0, btok: 0 };
+  S.total = { seen: 0, skip: 0, small: 0, large: 0, escalate: 0, spent: 0, est: 0, base: 0, lite: 0, tokens: 0, tokEst: 0, btok: 0 };
   $("digest").hidden = true;
   hidePhone(true);
   updateLedger();
@@ -172,6 +172,7 @@ function onFrame(row) {
   T.spent += costing.actual_usd;
   T.est += costing.estimated_usd;
   T.base += costing.baseline_usd;
+  T.lite += costing.baseline_lite_usd;
   T.tokens += costing.tokens;
   T.tokEst += costing.tokens_estimated;
   T.btok += costing.baseline_tokens;
@@ -231,17 +232,18 @@ function updateLedger(tier) {
   $("c-alert").textContent = T.escalate || 0;
   if (tier) bump({ skip: "c-empty", small: "c-lite", large: "c-pro", escalate: "c-alert" }[tier]);
   const spent = T.spent + T.est;
-  $("c-spent").textContent = usd(spent);
-  $("c-base").textContent = usd(T.base);
-  const estimated = T.est > 0;
-  $("c-tokens").textContent = `${int(T.tokens + T.tokEst)} tokens` + (estimated ? " (est.)" : "");
-  $("c-btokens").textContent = int(T.btok);
-  const save = $("c-save");
-  if (T.base > 0) { save.textContent = `${Math.round((1 - spent / T.base) * 100)}% less`; save.className = "save"; }
-  else { save.textContent = "—"; save.className = "save idle"; }
+  const est = T.est > 0 ? " est." : "";
+  $("c-spent").textContent = usd(spent) + est;
+  $("c-lite-all").textContent = usd(T.lite) + " est.";
+  $("c-pro-all").textContent = usd(T.base) + " est.";
+  $("c-tokens").textContent = `${int(T.tokens + T.tokEst)} tokens · Pro on every frame ${int(T.btok)}`;
+  $("c-ratio").textContent = T.base > 0
+    ? `${Math.round((1 - spent / T.base) * 100)}% under Pro · ${(spent / (T.lite || 1)).toFixed(1)}× Lite`
+    : "Bedrock costs estimated";
   const full = (T.perFrame || 0) * S.frames.length || 1;
-  $("bar-base").style.width = Math.min(100, (T.base / full) * 100) + "%";
   $("bar-spent").style.width = Math.min(100, (spent / full) * 100) + "%";
+  $("bar-lite").style.width = Math.min(100, (T.lite / full) * 100) + "%";
+  $("bar-pro").style.width = Math.min(100, (T.base / full) * 100) + "%";
 }
 
 function pin(i) {
@@ -271,12 +273,26 @@ function inspect(i) {
   if (img.getAttribute("src") !== f.full) img.src = f.full;
   $("lens-cam").textContent = `cam ${f.location}`;
   $("lens-clock").textContent = f.clock;
-  $("lens-light").textContent = f.lighting === "night_ir" ? "night · IR" : "day";
+  $("lens-light").textContent = `truth: ${f.label}${f.audit ? " (audit: " + f.audit + ")" : ""} · ${f.lighting === "night_ir" ? "night IR" : "day"}`;
   const deciding = !row && tile(i)?.dataset.state === "deciding";
   if (deciding) lens.classList.add("busy");
   if (row) lens.classList.add({ escalate: "alert", large: "pro", skip: "skip" }[row.result.tier] || "x");
   renderQs(row ? row.result : null, deciding);
+  renderBurst(row ? row.result : null, f);
   setVerdict(row, f, deciding);
+}
+
+function renderBurst(r, f) {
+  const box = $("burst");
+  const frames = (r && r.burst) || null;
+  if (!f || f.burst.length < 2) { box.innerHTML = `<span class="k">burst</span><span class="b-none">single frame</span>`; return; }
+  const items = frames || f.burst.map((n) => ({ file_name: n, self: n === f.file_name, thumb: `/thumb/${n}` }));
+  const th = S.status.thresholds;
+  box.innerHTML = `<span class="k">burst · ${items.length}</span>` + items.map((b) => {
+    const hot = b.escalate != null && b.escalate >= th.escalate_above;
+    const p = b.present != null ? pct(b.present) : "…";
+    return `<span class="bf${b.self ? " self" : ""}${hot ? " hot" : ""}"><img src="${b.thumb}" alt=""><b>${p}</b></span>`;
+  }).join("");
 }
 
 function answerOf(r, key) {
@@ -297,12 +313,12 @@ function renderQs(r, deciding) {
   box.innerHTML = `
     <div class="q"><span class="qt"><small>present · noul · P(animal)</small>${esc(q.present.instructions)}</span>
       <span class="qv">${present == null ? wait : pct(present)}</span>
-      <span class="meter"><span style="width:${(present || 0) * 100}%"></span><i style="left:${th.skip_below * 100}%" data-t="skip <${th.skip_below}"></i><i style="left:${th.small_above * 100}%" data-t="lite ≥${th.small_above}"></i></span></div>
+      <span class="meter"><span style="width:${(present || 0) * 100}%"></span><i style="left:${th.skip_below * 100}%" data-t="skip <${th.skip_below}"></i><i style="left:${th.small_above * 100}%" data-t="Lite ≥${th.small_above}"></i></span></div>
     <div class="q esc"><span class="qt"><small>escalate · noul · P(person/vehicle)</small>${esc(q.escalate.instructions)}</span>
       <span class="qv ${escl != null && escl >= th.escalate_above ? "hot" : ""}">${escl == null ? wait : pct(escl)}</span>
       <span class="meter"><span style="width:${(escl || 0) * 100}%"></span><i style="left:${th.escalate_above * 100}%" data-t="alert ≥${th.escalate_above}"></i></span></div>
-    <div class="q diff"><span class="qt"><small>difficulty · choice · confidence ${dconf == null ? wait : pct(dconf)}</small>${esc(q.difficulty.instructions)}</span>
-      <span class="qv"></span>
+    <div class="q diff"><span class="qt"><small>difficulty · choice</small>${esc(title(S.status.difficulty_note))}</span>
+      <span class="qv">${dconf == null ? "" : "conf " + pct(dconf)}</span>
       <div class="opts">${Object.keys(q.difficulty.criteria).map((k) => `<span class="opt ${k} ${diff === k ? "on" : ""}"><em style="width:${(probs[k] || 0) * 100}%"></em><span>${k}</span><b>${probs[k] != null ? pct(probs[k]) : ""}</b></span>`).join("")}</div></div>`;
 }
 
@@ -324,8 +340,8 @@ function setVerdict(row, f, deciding) {
   stamp.textContent = ACTION[r.tier] || r.tier;
   $("route").textContent = {
     skip: "Archived. No model was called.",
-    small: "Clear animal → Nova Lite names the species.",
-    large: "Present but hard to see → Nova Pro takes it.",
+    small: "Nova Lite · Decider confident there is an animal.",
+    large: "Nova Pro · Decider unsure, so the stronger model looks.",
     escalate: "Person or vehicle → straight to the ranger's phone.",
   }[r.tier];
   $("reason").textContent = r.reason;
@@ -337,14 +353,13 @@ function setVerdict(row, f, deciding) {
     const cls = (ok ? ok.model : want) === "Nova Pro" ? "pro" : "lite";
     if (ok) {
       const what = r.tier === "escalate" ? "alert written" : `<b>${esc(title(r.species || "?"))}</b>${r.species_confidence ? " · " + esc(r.species_confidence) : ""}`;
-      calls.append(el("div", "call", `<span class="who ${cls}">${esc(ok.model)}</span><span>${what} · ${int(ok.input_tokens + ok.output_tokens)} tok</span><span class="num">${usd(ok.cost_usd)} · ${int(ok.latency_ms)} ms</span>`));
+      calls.append(el("div", "call", `<span class="who ${cls}">${esc(ok.model)}</span><span>${what}</span><span class="num">${usd(ok.cost_usd)} · ${int(ok.latency_ms)} ms</span>`));
     } else {
       const n = el("div", "call queued", `<span class="who off">${esc(want)}</span><span>queued · Bedrock unavailable</span><span class="num"></span>`);
       n.title = `${want} — queued (Bedrock unavailable). Estimated ${usd(row.costing.estimated_usd)}.` + (failed ? ` ${failed.error}` : "");
       calls.append(n);
     }
   }
-  calls.append(el("div", "call", `<span class="who off">Truth</span><span class="gt">CCT label: ${esc(f.label)}</span><span class="num">${esc(f.lighting === "night_ir" ? "night IR" : "day")}</span>`));
 }
 
 function queueAlert(row) {
@@ -415,8 +430,8 @@ function showDigest(d) {
     : `<li class="none">${d.lite} to Nova Lite, ${d.pro} to Nova Pro; species labels queued while Bedrock is unavailable.</li>`;
   $("dg-alerts").innerHTML = d.alert_frames.map((f) => `<figure><img src="${f.thumb}" alt=""><figcaption><b>cam ${esc(f.location)}</b> · ${esc(f.clock)}</figcaption></figure>`).join("") || `<p class="dg-note mono">Nothing for you tonight.</p>`;
   const saved = d.baseline_usd ? Math.round((1 - d.spent_usd / d.baseline_usd) * 100) : 0;
-  $("dg-cost").innerHTML = `<b>${usd(d.spent_usd)}</b> vs ${usd(d.baseline_usd)}`;
-  $("dg-note").textContent = `${saved}% less than Nova Pro on every frame. ${d.empty} frames never reached a model. Decider p50 ${d.decider_p50_ms ? int(d.decider_p50_ms) + " ms" : "—"}, run locally.` + (S.total.est > 0 ? " Bedrock spend is estimated from token counts; calls are queued." : "");
+  $("dg-cost").innerHTML = `<b>${usd(d.spent_usd)}</b> <span class="vs">vs Pro ${usd(d.baseline_usd)} · Lite ${usd(d.baseline_lite_usd)}</span>`;
+  $("dg-note").textContent = `${saved}% less than Nova Pro on every frame; ${(d.spent_usd / (d.baseline_lite_usd || 1)).toFixed(1)}× Nova Lite on every frame (estimates). ${d.empty} frames never reached a model. Decider p50 ${d.decider_p50_ms ? int(d.decider_p50_ms) + " ms" : "—"}, run locally.` + (S.total.est > 0 ? " Bedrock spend is estimated from token counts; calls are queued." : "");
   setTimeout(() => { if (!S.phoneBusy) $("digest").hidden = false; else waitDigest(); }, 900);
 }
 

@@ -46,17 +46,14 @@
 <section class="ledger" aria-label="Running totals">
   <div class="stat"><span class="k">Frames seen</span><span class="v"><b id="c-seen">0</b><small>/<span id="c-total">0</span></small></span></div>
   <div class="stat s-empty"><span class="k">Empty · skipped</span><span class="v"><b id="c-empty">0</b></span><span class="sub">$0 · no model</span></div>
-  <div class="stat s-lite"><span class="k">Nova Lite</span><span class="v"><b id="c-lite">0</b></span><span class="sub">clear animal</span></div>
-  <div class="stat s-pro"><span class="k">Nova Pro</span><span class="v"><b id="c-pro">0</b></span><span class="sub">dark · IR · hidden</span></div>
+  <div class="stat s-lite"><span class="k">Nova Lite</span><span class="v"><b id="c-lite">0</b></span><span class="sub">Decider confident</span></div>
+  <div class="stat s-pro"><span class="k">Nova Pro</span><span class="v"><b id="c-pro">0</b></span><span class="sub">Decider unsure</span></div>
   <div class="stat s-alert"><span class="k">For the ranger</span><span class="v"><b id="c-alert">0</b></span><span class="sub">person or vehicle</span></div>
   <div class="spend">
-    <div class="spend-head">
-      <span class="k">Spent</span>
-      <span class="spend-fig"><b id="c-spent">$0.0000</b><span class="vs">vs</span><span id="c-base">$0.0000</span></span>
-      <span class="save" id="c-save">—</span>
-    </div>
-    <div class="track"><span class="bar-base" id="bar-base"></span><span class="bar-spent" id="bar-spent"></span></div>
-    <div class="spend-foot"><span id="c-tokens">0 tokens</span><span>Nova Pro on every frame: <b id="c-btokens">0</b> tokens</span></div>
+    <div class="cmp me"><span class="cl">Trailgate</span><span class="track"><span id="bar-spent"></span></span><b id="c-spent">$0.0000</b></div>
+    <div class="cmp lite"><span class="cl">Nova Lite, every frame</span><span class="track"><span id="bar-lite"></span></span><b id="c-lite-all">$0.0000</b></div>
+    <div class="cmp pro"><span class="cl">Nova Pro, every frame</span><span class="track"><span id="bar-pro"></span></span><b id="c-pro-all">$0.0000</b></div>
+    <div class="spend-foot"><span id="c-tokens">0 tokens</span><span id="c-ratio">Bedrock costs estimated</span></div>
   </div>
 </section>
 
@@ -80,6 +77,7 @@
       <span class="sweep"></span>
       <figcaption><span id="lens-cam">cam —</span><span id="lens-clock">--:--</span><span id="lens-light"></span></figcaption>
     </figure>
+    <div class="burst" id="burst"></div>
     <div class="qs" id="qs"></div>
     <div class="verdict" id="verdict">
       <span class="stamp" id="stamp">Pending</span>

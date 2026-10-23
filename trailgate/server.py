@@ -5,7 +5,7 @@ Modes:
   replay  results are read from a cached jsonl in results/ and paced like a live run
 
 Run:
-  python -m trailgate.server                         # replay from the results/*.jsonl covering most frames
+  python -m trailgate.server   (replays results/decider_answers.jsonl with the v2 burst policy)
   python -m trailgate.server --replay results/decider_answers.jsonl
   python -m trailgate.server --mode live --record results/run-live.jsonl
 """
@@ -17,6 +17,7 @@ import asyncio
 import csv
 import io
 import json
+import logging
 import os
 import random
 import socket
@@ -30,8 +31,8 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
 from fastapi.concurrency import run_in_threadpool
+from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 from patterns.presence_router import PresenceRouterCore, Thresholds, build_questions
@@ -43,7 +44,7 @@ WEB = Path(__file__).resolve().parent / "web"
 IMAGES = ROOT / "data" / "images"
 MANIFESTS = ROOT / "data" / "manifests"
 RESULTS = ROOT / "results"
-OUTBOX = ROOT / "outbox"
+OUTBOX = Path(os.environ.get("TRAILGATE_OUTBOX", ROOT / "outbox"))
 
 TIER_ACTION = {
     "skip": "EMPTY",
@@ -59,8 +60,11 @@ FALLBACK_TOKENS_PER_FRAME = {"in": 1290, "out": 15}
 REELS = [
     {"id": "card-a", "name": "Card A", "seed": 7, "size": 54},
     {"id": "card-b", "name": "Card B", "seed": 23, "size": 54},
-    {"id": "card-c", "name": "Card C", "seed": 41, "size": 63},
+    {"id": "card-c", "name": "Card C", "seed": 41, "size": 54},
 ]
+DEFAULT_REPLAY = RESULTS / "decider_answers.jsonl"
+LABEL_AUDIT = RESULTS / "label_audit.csv"
+DIFFICULTY_NOTE = "asked, not used for routing · weak signal: AUC 0.67 night vs day"
 
 CONFIG = {
     "mode": "replay",
@@ -71,6 +75,7 @@ CONFIG = {
 }
 
 app = FastAPI(title="Trailgate")
+log = logging.getLogger("trailgate.server")
 _run_lock = asyncio.Lock()
 _write_lock = threading.Lock()
 
@@ -89,10 +94,37 @@ def _read_manifest(name: str) -> list[dict]:
 @lru_cache(maxsize=1)
 def manifest() -> dict[str, dict]:
     rows: dict[str, dict] = {}
-    for name in ("tune", "vehicle", "heldout"):
+    for name in ("tune", "vehicle", "heldout_bursts", "heldout"):
         for row in _read_manifest(name):
-            rows[row["file_name"]] = row
+            rows[row["file_name"]] = {**rows.get(row["file_name"], {}), **row}
     return rows
+
+
+@lru_cache(maxsize=1)
+def bursts() -> dict[str, list[dict]]:
+    out: dict[str, list[dict]] = {}
+    for row in _read_manifest("heldout_bursts"):
+        out.setdefault(row["seq_id"], []).append(row)
+    for frames in out.values():
+        frames.sort(key=lambda r: int(r.get("frame_num") or 0))
+    return out
+
+
+def burst_of(file_name: str) -> list[dict]:
+    """The frames of the camera burst this frame belongs to; a lone frame is its own burst."""
+    row = manifest().get(file_name, {})
+    frames = bursts().get(row.get("seq_id", ""), [])
+    return frames if any(f["file_name"] == file_name for f in frames) else [row]
+
+
+@lru_cache(maxsize=1)
+def audited_people() -> list[str]:
+    """Held-out frames CCT labels empty that show people, from the label audit."""
+    if not LABEL_AUDIT.exists():
+        return []
+    with LABEL_AUDIT.open(newline="") as fh:
+        rows = list(csv.DictReader(fh))
+    return sorted(r["file_name"] for r in rows if r.get("set") == "heldout" and r.get("audited_label") == "person")
 
 
 @lru_cache(maxsize=1)
@@ -108,7 +140,7 @@ def _pricing() -> dict:
             "tokens": tokens_in + bedrock.LABEL_OUTPUT_TOKENS,
             "source": "trailgate.bedrock.baseline_cost",
         }
-    except Exception:
+    except (ImportError, AttributeError):
         t = FALLBACK_TOKENS_PER_FRAME
         per = {k: (t["in"] * v[0] + t["out"] * v[1]) / 1000 for k, v in FALLBACK_PRICING.items()}
         return {**per, "tokens": t["in"] + t["out"], "source": "FALLBACK_PRICING (server.py)"}
@@ -147,6 +179,7 @@ def costing(result: dict) -> dict:
         "tokens": tok,
         "tokens_estimated": tok_est,
         "baseline_usd": p["Nova Pro"],
+        "baseline_lite_usd": p["Nova Lite"],
         "baseline_tokens": p["tokens"],
         "pricing_source": p["source"],
     }
@@ -175,7 +208,8 @@ def _pick(answers: dict, keys: tuple[str, ...], prefix: str) -> dict | None:
 
 def _answers_of(row: dict) -> dict | None:
     """Decider answers in router shape {present, escalate, difficulty}, mapping eval-style keys when needed."""
-    for candidate in (row.get("answers"), (row.get("response") or {}).get("answers"), (row.get("decider") or {}).get("answers")):
+    nested = [(row.get(k) or {}).get("answers") for k in ("response", "decider")]
+    for candidate in (row.get("answers"), *nested):
         if not isinstance(candidate, dict):
             continue
         present = _pick(candidate, PRESENT_KEYS, "p_")
@@ -199,12 +233,18 @@ def _normalise(row: dict) -> tuple[str, dict] | None:
         result = dict(row)
         result.setdefault("calls", [])
         result["frame"] = key
+        result["kind"] = "recorded"
         return key, result
     answers = _answers_of(row)
     if answers is None:
         return None
-    latency = float(row.get("latency_ms") or row.get("decider_latency_ms") or row.get("server_latency_ms")
-                    or (row.get("response") or {}).get("latency_ms") or 0.0)
+    latency = float(
+        row.get("latency_ms")
+        or row.get("decider_latency_ms")
+        or row.get("server_latency_ms")
+        or (row.get("response") or {}).get("latency_ms")
+        or 0.0
+    )
     route = _core().decide(answers, latency)
     meta = manifest().get(key, {})
     result = FrameResult(
@@ -220,6 +260,7 @@ def _normalise(row: dict) -> tuple[str, dict] | None:
     ).to_dict()
     result["answers"] = answers
     result["difficulty_confidence"] = route.difficulty_confidence
+    result["kind"] = "answers"
     return key, result
 
 
@@ -228,7 +269,7 @@ def thresholds() -> Thresholds:
         from trailgate.pipeline import load_thresholds
 
         return load_thresholds()
-    except Exception:
+    except (ImportError, OSError, ValueError, TypeError):
         return Thresholds()
 
 
@@ -246,6 +287,8 @@ def replay_sources() -> list[Path]:
 def replay_path() -> Path | None:
     if CONFIG["replay"]:
         return Path(CONFIG["replay"])
+    if DEFAULT_REPLAY.exists():
+        return DEFAULT_REPLAY
     sources = replay_sources()
     if not sources:
         return None
@@ -284,29 +327,62 @@ def _night_order(row: dict) -> tuple:
     return ((ts.hour - 18) % 24, ts.minute, ts.second, row["file_name"])
 
 
-def build_reel(seed: int, size: int, allowed: set[str] | None = None) -> list[dict]:
-    """Deterministic card: mostly empty frames, animals day and night, and two or three vehicles."""
+def replay_result(file_name: str, cache: dict[str, dict]) -> dict:
+    """The cached result for a frame; raw Decider answers are re-routed with the burst rule over its siblings."""
+    own = cache[file_name]
+    if own.get("kind") != "answers":
+        return json.loads(json.dumps(own))
+    core = _core()
+    siblings = [f["file_name"] for f in burst_of(file_name) if f.get("file_name") in cache]
+    if file_name not in siblings:
+        siblings = [file_name]
+    routes = [core.decide(cache[f]["answers"], float(cache[f]["decider_latency_ms"] or 0.0)) for f in siblings]
+    decided = core.decide_burst(routes) if len(routes) > 1 else routes
+    route = decided[siblings.index(file_name)]
+    result = json.loads(json.dumps(own))
+    result.update(tier=route.tier.value, reason=route.reason)
+    result["burst"] = [
+        {"file_name": f, "present": r.present, "escalate": r.escalate, "self": f == file_name, "thumb": f"/thumb/{f}"}
+        for f, r in zip(siblings, routes)
+    ]
+    return result
+
+
+def _shuffled(rows: list[dict], rng: random.Random) -> list[dict]:
+    rows = sorted(rows, key=lambda r: r["file_name"])
+    rng.shuffle(rows)
+    return rows
+
+
+def build_reel(seed: int, size: int, cache: dict[str, dict] | None = None) -> list[dict]:
+    """Deterministic card from held-out and vehicle frames, with at least one vehicle alert and one audited person."""
     rng = random.Random(seed)
     rows = [r for r in manifest().values() if (IMAGES / r["file_name"]).exists()]
-    if allowed is not None:
-        rows = [r for r in rows if r["file_name"] in allowed]
-    pool = ("heldout",) if allowed is None else ("heldout", "tune")
-    held = sorted((r for r in rows if r["source"] in pool), key=lambda r: r["file_name"])
-    cars = sorted((r for r in rows if r["label"] in ("car", "person")), key=lambda r: r["file_name"])
-    night_cars = [r for r in cars if r["lighting"] == "night_ir"]
-    pick_cars = night_cars[:2] if len(night_cars) >= 2 else list(night_cars)
-    rest = [r for r in cars if r not in pick_cars]
-    rng.shuffle(rest)
-    pick_cars += rest[: max(0, 3 - len(pick_cars))]
-    empties = [r for r in held if r["label"] == "empty"]
-    animals = [r for r in held if r["label"] not in ("empty", "car", "person")]
-    rng.shuffle(empties)
-    rng.shuffle(animals)
-    n_rest = size - len(pick_cars)
-    n_empty = min(len(empties), round(n_rest * 0.6))
+    if cache is not None:
+        rows = [r for r in rows if r["file_name"] in cache]
+
+    def tier(row: dict) -> str | None:
+        return replay_result(row["file_name"], cache)["tier"] if cache is not None else None
+
+    people_names = audited_people()
+    people = [r for r in rows if r["file_name"] in people_names and r["source"] == "heldout"]
+    alerting = [r for r in people if tier(r) in (None, "escalate")] or people
+    alerting.sort(key=lambda r: r["file_name"])
+    pick = [alerting[seed % len(alerting)]] if alerting else []
+
+    vehicles = [r for r in rows if r["source"] == "vehicle"]
+    caught = [r for r in vehicles if tier(r) in (None, "escalate")] or vehicles
+    night = _shuffled([r for r in caught if r["lighting"] == "night_ir"], rng)
+    day = _shuffled([r for r in caught if r["lighting"] != "night_ir"], rng)
+    pick += (night[:1] + day)[:2]
+
+    held = [r for r in rows if r["source"] == "heldout" and r["file_name"] not in people_names]
+    empties = _shuffled([r for r in held if r["label"] == "empty"], rng)
+    animals = _shuffled([r for r in held if r["label"] not in ("empty", "car")], rng)
+    n_rest = size - len(pick)
+    n_empty = min(len(empties), round(n_rest * 0.55))
     n_animal = min(len(animals), n_rest - n_empty)
-    n_empty = min(len(empties), n_rest - n_animal)
-    reel = pick_cars + empties[:n_empty] + animals[:n_animal]
+    reel = pick + empties[:n_empty] + animals[:n_animal]
     reel.sort(key=_night_order)
     return [_frame_meta(r, i) for i, r in enumerate(reel)]
 
@@ -323,6 +399,8 @@ def _frame_meta(row: dict, index: int) -> dict:
         "captured": captured,
         "clock": clock,
         "lighting": row["lighting"],
+        "burst": [f["file_name"] for f in burst_of(row["file_name"]) if f.get("file_name")],
+        "audit": "person" if row["file_name"] in audited_people() else None,
         "thumb": f"/thumb/{row['file_name']}",
         "full": f"/frames/{row['file_name']}",
     }
@@ -341,8 +419,9 @@ def decider_reachable(url: str) -> bool:
 def pipeline_status() -> dict:
     try:
         from trailgate import pipeline
-    except Exception as exc:
-        return {"available": False, "detail": f"trailgate.pipeline not importable ({type(exc).__name__}); router-only adapter"}
+    except ImportError as exc:
+        detail = f"trailgate.pipeline not importable ({type(exc).__name__}); router-only adapter"
+        return {"available": False, "detail": detail}
     return {"available": hasattr(pipeline, "Triage"), "detail": "trailgate.pipeline.Triage"}
 
 
@@ -356,39 +435,78 @@ class _RouterOnlyTriage:
         route = self.router.route(path)
         calls = []
         if route.tier.value in TIER_MODEL:
-            calls.append(ModelCall(model_id=TIER_MODEL[route.tier.value], tier=route.tier.value, input_tokens=0,
-                                   output_tokens=0, latency_ms=0.0, cost_usd=0.0, error="pipeline not available"))
-        return FrameResult(frame=str(path), tier=route.tier.value, present=route.present, escalate=route.escalate,
-                           difficulty=route.difficulty, reason=route.reason, decider_latency_ms=route.latency_ms,
-                           calls=calls, label=label, lighting=lighting)
+            calls.append(
+                ModelCall(
+                    model_id=TIER_MODEL[route.tier.value],
+                    tier=route.tier.value,
+                    input_tokens=0,
+                    output_tokens=0,
+                    latency_ms=0.0,
+                    cost_usd=0.0,
+                    error="pipeline not available",
+                )
+            )
+        return FrameResult(
+            frame=str(path),
+            tier=route.tier.value,
+            present=route.present,
+            escalate=route.escalate,
+            difficulty=route.difficulty,
+            reason=route.reason,
+            decider_latency_ms=route.latency_ms,
+            calls=calls,
+            label=label,
+            lighting=lighting,
+        )
 
 
 class LiveTriage:
-    """Wraps the pipeline and keeps the Decider route of the frame just run, so the UI can show every answer."""
+    """Wraps the pipeline: runs the frame's whole burst and keeps the Decider answers so the UI can show them."""
 
     def __init__(self):
         try:
             from trailgate.pipeline import Triage
-        except Exception:
+        except ImportError:
             Triage = _RouterOnlyTriage
         self.inner = Triage(bedrock=True)
-        self.last_route = None
+        self.routes: list = []
         original = self.inner.router.route
 
         def capture(image):
-            self.last_route = original(image)
-            return self.last_route
+            route = original(image)
+            self.routes.append(route)
+            return route
 
         self.inner.router.route = capture
 
     def run(self, path: Path, label: str | None, lighting: str | None) -> dict:
-        self.last_route = None
-        result = self.inner.run(path, label=label, lighting=lighting)
-        data = result.to_dict() if hasattr(result, "to_dict") else asdict(result)
+        self.routes = []
+        names = [f["file_name"] for f in burst_of(path.name) if f.get("file_name")] or [path.name]
+        paths = [IMAGES / n for n in names if (IMAGES / n).exists()]
+        if path not in paths or not hasattr(self.inner, "run_burst"):
+            paths = [path]
+        metas = [manifest().get(p.name, {}) for p in paths]
+        if len(paths) > 1:
+            results = self.inner.run_burst(paths, [m.get("label") for m in metas], [m.get("lighting") for m in metas])
+        else:
+            results = [self.inner.run(path, label=label, lighting=lighting)]
+        at = paths.index(path)
+        data = results[at].to_dict() if hasattr(results[at], "to_dict") else asdict(results[at])
         data["frame"] = _frame_key(data.get("frame")) or data.get("frame")
-        if self.last_route is not None:
-            data["answers"] = self.last_route.answers
-            data["difficulty_confidence"] = self.last_route.difficulty_confidence
+        if len(self.routes) == len(paths):
+            data["answers"] = self.routes[at].answers
+            data["difficulty_confidence"] = self.routes[at].difficulty_confidence
+            if len(paths) > 1:
+                data["burst"] = [
+                    {
+                        "file_name": p.name,
+                        "present": r.present,
+                        "escalate": r.escalate,
+                        "self": p == path,
+                        "thumb": f"/thumb/{p.name}",
+                    }
+                    for p, r in zip(paths, self.routes)
+                ]
         return data
 
 
@@ -446,6 +564,7 @@ def _digest(rows: list[dict]) -> dict:
     lat = [float(r["result"].get("decider_latency_ms") or 0) for r in rows if r["result"].get("decider_latency_ms")]
     spent = sum(r["costing"]["actual_usd"] + r["costing"]["estimated_usd"] for r in rows)
     baseline = sum(r["costing"]["baseline_usd"] for r in rows)
+    baseline_lite = sum(r["costing"]["baseline_lite_usd"] for r in rows)
     return {
         "frames": len(rows),
         "empty": tiers.count("skip"),
@@ -457,6 +576,7 @@ def _digest(rows: list[dict]) -> dict:
         "decider_p50_ms": statistics.median(lat) if lat else None,
         "spent_usd": spent,
         "baseline_usd": baseline,
+        "baseline_lite_usd": baseline_lite,
         "alert_frames": [r["meta"] for r in rows if r["result"]["tier"] == "escalate"],
     }
 
@@ -466,9 +586,15 @@ def _resolve_reel(reel_id: str, mode: str) -> tuple[list[dict], dict[str, dict],
     if mode == "replay":
         path = replay_path()
         cache = load_replay(path)
-        frames = build_reel(reel["seed"], reel["size"], set(cache)) if cache else []
-        return frames, cache, str(path.relative_to(ROOT)) if path and path.is_relative_to(ROOT) else str(path)
+        frames = build_reel(reel["seed"], reel["size"], cache) if cache else []
+        return frames, cache, _display(path) or ""
     return build_reel(reel["seed"], reel["size"]), {}, "live"
+
+
+def _display(path: Path | None) -> str | None:
+    if path is None:
+        return None
+    return str(path.relative_to(ROOT)) if path.is_relative_to(ROOT) else str(path)
 
 
 @app.get("/")
@@ -484,13 +610,17 @@ def status() -> dict:
         "mode": CONFIG["mode"],
         "decider": {"url": CONFIG["decider_url"], "reachable": decider_reachable(CONFIG["decider_url"])},
         "pipeline": pipeline_status(),
-        "replay": {"path": str(path.relative_to(ROOT)) if path and path.is_relative_to(ROOT) else (str(path) if path else None),
-                   "frames": len(cache), "sources": [str(p.relative_to(ROOT)) for p in replay_sources()]},
+        "replay": {
+            "path": _display(path),
+            "frames": len(cache),
+            "sources": [str(p.relative_to(ROOT)) for p in replay_sources()],
+        },
         "record": CONFIG["record"],
         "pricing_source": _pricing()["source"],
         "reels": REELS,
         "questions": build_questions(),
         "thresholds": asdict(thresholds()),
+        "difficulty_note": DIFFICULTY_NOTE if not thresholds().use_difficulty else "used for routing",
     }
 
 
@@ -522,14 +652,22 @@ async def run(request: Request, id: str = REELS[0]["id"], mode: str | None = Non
                 if mode == "live":
                     started = time.perf_counter()
                     try:
-                        result = await run_in_threadpool(triage().run, IMAGES / meta["file_name"], meta["label"], meta["lighting"])
+                        path = IMAGES / meta["file_name"]
+                        result = await run_in_threadpool(triage().run, path, meta["label"], meta["lighting"])
                     except Exception as exc:
-                        yield _sse("failed", {"index": meta["index"], "error": f"{type(exc).__name__}: {exc}"[:240],
-                                              "elapsed_ms": (time.perf_counter() - started) * 1000})
+                        log.exception("live triage failed for %s", meta["file_name"])
+                        yield _sse(
+                            "failed",
+                            {
+                                "index": meta["index"],
+                                "error": f"{type(exc).__name__}: {exc}"[:240],
+                                "elapsed_ms": (time.perf_counter() - started) * 1000,
+                            },
+                        )
                         continue
                     _record(result)
                 else:
-                    result = json.loads(json.dumps(cache[meta["file_name"]]))
+                    result = replay_result(meta["file_name"], cache)
                     await asyncio.sleep(_replay_delay(result, pace))
                 row = _enrich(result, meta, source)
                 rows.append(row)
@@ -539,8 +677,9 @@ async def run(request: Request, id: str = REELS[0]["id"], mode: str | None = Non
             if mode == "live" and _run_lock.locked():
                 _run_lock.release()
 
-    return StreamingResponse(stream(), media_type="text/event-stream",
-                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+    return StreamingResponse(
+        stream(), media_type="text/event-stream", headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
+    )
 
 
 @app.post("/api/action")
@@ -593,9 +732,11 @@ app.mount("/static", StaticFiles(directory=WEB), name="static")
 def main() -> None:
     parser = argparse.ArgumentParser(description="Trailgate demo UI")
     parser.add_argument("--mode", choices=["live", "replay"], default=os.environ.get("TRAILGATE_MODE", "replay"))
-    parser.add_argument("--replay", help="jsonl of FrameResult rows or Decider answers (default: the results/*.jsonl covering most frames)")
+    parser.add_argument(
+        "--replay", help="jsonl of FrameResult rows or Decider answers (default: results/decider_answers.jsonl)"
+    )
     parser.add_argument("--record", help="append every live FrameResult to this jsonl, replayable later")
-    parser.add_argument("--pace", type=float, default=1.0, help="replay speed multiplier on per-frame delay (lower is faster)")
+    parser.add_argument("--pace", type=float, default=1.0, help="replay delay multiplier (lower is faster)")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8000)
     args = parser.parse_args()
