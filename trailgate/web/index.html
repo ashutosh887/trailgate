@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trailgate</title>
+<meta name="description" content="A 2B model decides which camera-trap photos are worth a model's time.">
+<meta name="theme-color" content="#070b09">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23060a08'/%3E%3Ccircle cx='16' cy='16' r='7' fill='none' stroke='%238df5a8' stroke-width='3'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400;62..125,600;62..125,800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+<header class="bar">
+  <div class="brand">
+    <svg class="mark" viewBox="0 0 32 32" aria-hidden="true">
+      <rect x="2" y="5" width="28" height="22" rx="3" fill="none" stroke="currentColor" stroke-width="2.4"/>
+      <circle cx="16" cy="16" r="6.2" fill="none" stroke="currentColor" stroke-width="2.4"/>
+      <circle cx="16" cy="16" r="2" fill="currentColor"/>
+      <circle cx="25.4" cy="9.6" r="1.6" class="mark-led"/>
+    </svg>
+    <div class="brand-text">
+      <span class="wordmark">Trailgate</span>
+      <span class="tagline">A 2B model decides which camera-trap photos are worth a model's time.</span>
+    </div>
+  </div>
+  <div class="prov" id="prov">
+    <span class="pill" id="pill-decider"><i></i><b>Decider 2B</b><em>…</em></span>
+    <span class="pill" id="pill-bedrock"><i></i><b>Bedrock</b><em>waiting</em></span>
+    <span class="pill quiet" id="pill-source"><b>Source</b><em>…</em></span>
+  </div>
+</header>
+
+<section class="controls">
+  <div class="seg" id="reels" role="group" aria-label="Memory card"></div>
+  <div class="seg" id="modes" role="group" aria-label="Mode">
+    <button type="button" data-mode="live">Live</button>
+    <button type="button" data-mode="replay">Replay</button>
+  </div>
+  <p class="hint" id="hint"></p>
+  <button type="button" class="run" id="run"><span class="run-dot"></span><span id="run-label">Run the card</span></button>
+</section>
+
+<section class="ledger" aria-label="Running totals">
+  <div class="stat"><span class="k">Frames seen</span><span class="v"><b id="c-seen">0</b><small>/<span id="c-total">0</span></small></span></div>
+  <div class="stat s-empty"><span class="k">Empty · skipped</span><span class="v"><b id="c-empty">0</b></span><span class="sub">$0 · no model</span></div>
+  <div class="stat s-lite"><span class="k">Nova Lite</span><span class="v"><b id="c-lite">0</b></span><span class="sub">clear animal</span></div>
+  <div class="stat s-pro"><span class="k">Nova Pro</span><span class="v"><b id="c-pro">0</b></span><span class="sub">dark · IR · hidden</span></div>
+  <div class="stat s-alert"><span class="k">For the ranger</span><span class="v"><b id="c-alert">0</b></span><span class="sub">person or vehicle</span></div>
+  <div class="spend">
+    <div class="spend-head">
+      <span class="k">Spent</span>
+      <span class="spend-fig"><b id="c-spent">$0.0000</b><span class="vs">vs</span><span id="c-base">$0.0000</span></span>
+      <span class="save" id="c-save">—</span>
+    </div>
+    <div class="track"><span class="bar-base" id="bar-base"></span><span class="bar-spent" id="bar-spent"></span></div>
+    <div class="spend-foot"><span id="c-tokens">0 tokens</span><span>Nova Pro on every frame: <b id="c-btokens">0</b> tokens</span></div>
+  </div>
+</section>
+
+<main class="stage">
+  <section class="card">
+    <div class="card-head">
+      <h1 id="card-title">Last night's card</h1>
+      <p id="card-meta" class="mono"></p>
+      <ul class="legend">
+        <li class="lg-empty">Empty</li><li class="lg-lite">Nova Lite</li><li class="lg-pro">Nova Pro</li><li class="lg-alert">Alert</li>
+      </ul>
+    </div>
+    <div class="grid" id="grid"></div>
+  </section>
+
+  <aside class="scope" id="scope" aria-live="polite">
+    <div class="scope-head"><span class="k">Decider's view</span><span class="pin" id="pin">following</span></div>
+    <figure class="lens" id="lens">
+      <img id="lens-img" alt="">
+      <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+      <span class="sweep"></span>
+      <figcaption><span id="lens-cam">cam —</span><span id="lens-clock">--:--</span><span id="lens-light"></span></figcaption>
+    </figure>
+    <div class="qs" id="qs"></div>
+    <div class="verdict" id="verdict">
+      <span class="stamp" id="stamp">Pending</span>
+      <div class="verdict-body">
+        <p class="route" id="route">Press Run. Each frame gets one Decider call with three typed questions.</p>
+        <p class="reason mono" id="reason"></p>
+      </div>
+    </div>
+    <div class="callrow" id="callrow"></div>
+  </aside>
+</main>
+
+<div class="phone" id="phone" aria-live="assertive" hidden>
+  <div class="phone-shell">
+    <div class="notch"></div>
+    <div class="phone-status mono"><span id="ph-time">02:14</span><span>ranger · field</span></div>
+    <div class="note">
+      <div class="note-head"><span class="note-app"><i></i>TRAILGATE</span><span class="mono">now</span></div>
+      <p class="note-title" id="ph-title">Person or vehicle at camera 38</p>
+      <img id="ph-img" alt="">
+      <p class="note-text" id="ph-text"></p>
+      <p class="note-meta mono" id="ph-meta"></p>
+      <div class="note-acts" id="ph-acts">
+        <button type="button" class="act dispatch" data-act="dispatch_patrol">Dispatch patrol</button>
+        <button type="button" class="act staff" data-act="known_staff">Known staff</button>
+      </div>
+      <p class="note-done mono" id="ph-done" hidden></p>
+    </div>
+    <p class="phone-queue mono" id="ph-queue"></p>
+  </div>
+</div>
+
+<div class="digest" id="digest" hidden>
+  <div class="digest-card">
+    <div class="digest-top"><span class="k">Morning digest</span><button type="button" class="x" id="digest-x" aria-label="Close">×</button></div>
+    <p class="digest-line" id="dg-line"></p>
+    <div class="digest-cols">
+      <div><span class="k">Labelled</span><ul class="species" id="dg-species"></ul></div>
+      <div><span class="k">For you</span><div class="dg-alerts" id="dg-alerts"></div></div>
+      <div><span class="k">Cost</span><p class="dg-cost" id="dg-cost"></p><p class="dg-note mono" id="dg-note"></p></div>
+    </div>
+  </div>
+</div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>
