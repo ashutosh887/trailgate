@@ -604,11 +604,17 @@ def index() -> FileResponse:
 
 @app.get("/api/status")
 def status() -> dict:
+    return status_info()
+
+
+def status_info(probe_decider: bool = True) -> dict:
+    """Console status; probe_decider=False skips the TCP check so nothing touches the Decider port."""
     path = replay_path()
     cache = load_replay(path)
+    reachable = decider_reachable(CONFIG["decider_url"]) if probe_decider else False
     return {
         "mode": CONFIG["mode"],
-        "decider": {"url": CONFIG["decider_url"], "reachable": decider_reachable(CONFIG["decider_url"])},
+        "decider": {"url": CONFIG["decider_url"], "reachable": reachable},
         "pipeline": pipeline_status(),
         "replay": {
             "path": _display(path),

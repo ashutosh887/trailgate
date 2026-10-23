@@ -2,6 +2,10 @@
 
 const $ = (id) => document.getElementById(id);
 const params = new URLSearchParams(location.search);
+const STATIC = window.TRAILGATE_STATIC === true;
+const QUEUED = STATIC ? "not called in this replay" : "queued · Bedrock unavailable";
+const thumbOf = (n) => (STATIC ? "thumbs/" : "/thumb/") + n;
+const cards = new Map();
 const S = {
   status: null, mode: "replay", reel: null, frames: [], rows: new Map(), es: null, running: false,
   pinned: null, current: null, queue: [], phoneBusy: false, bedrock: null, total: {},
@@ -16,7 +20,8 @@ const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<
 const title = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 
 async function boot() {
-  S.status = await (await fetch("/api/status")).json();
+  S.status = await (await fetch(STATIC ? "data/status.json" : "/api/status")).json();
+  if (STATIC) $("static-note").hidden = false;
   S.mode = params.get("mode") || S.status.mode;
   if (S.mode === "replay" && !S.status.replay.frames) S.mode = "live";
   renderReels();
@@ -44,6 +49,7 @@ function renderModes() {
   for (const b of $("modes").querySelectorAll("button")) {
     b.setAttribute("aria-pressed", String(b.dataset.mode === S.mode));
     if (b.dataset.mode === "replay") b.disabled = !S.status.replay.frames;
+    if (b.dataset.mode === "live" && STATIC) { b.disabled = true; b.title = "Live needs a local Decider server: see README"; }
     b.onclick = () => { if (!S.running && S.mode !== b.dataset.mode) { S.mode = b.dataset.mode; renderModes(); loadReel(S.reel.id); } };
   }
   const st = S.status;
@@ -73,12 +79,12 @@ function setPill(id, cls, text) {
 function setBedrock(state) {
   S.bedrock = state;
   if (state === "live") setPill("pill-bedrock", "live", "live");
-  else if (state === "queued") setPill("pill-bedrock", "warn", "unavailable · calls queued");
-  else setPill("pill-bedrock", "warn", S.mode === "replay" ? "from cache" : "waiting");
+  else if (state === "queued") setPill("pill-bedrock", "warn", STATIC ? "not called · estimated" : "unavailable · calls queued");
+  else setPill("pill-bedrock", "warn", STATIC ? "not called · estimated" : S.mode === "replay" ? "from cache" : "waiting");
 }
 
 async function loadReel(id) {
-  const data = await (await fetch(`/api/reel?id=${encodeURIComponent(id)}&mode=${S.mode}`)).json();
+  const data = STATIC ? await staticCard(id) : await (await fetch(`/api/reel?id=${encodeURIComponent(id)}&mode=${S.mode}`)).json();
   S.reel = S.status.reels.find((r) => r.id === id) || S.status.reels[0];
   S.frames = data.frames;
   for (const b of $("reels").querySelectorAll("button")) b.setAttribute("aria-pressed", String(b.dataset.id === S.reel.id));
@@ -105,6 +111,29 @@ async function loadReel(id) {
   inspect(S.frames.length ? 0 : null);
 }
 
+async function staticCard(id) {
+  if (!cards.has(id)) cards.set(id, await (await fetch(`data/${encodeURIComponent(id)}.json`)).json());
+  return cards.get(id);
+}
+
+async function playStatic() {
+  const run = {};
+  S.play = run;
+  const card = await staticCard(S.reel.id);
+  const pace = Math.max(0.05, Math.min(parseFloat(params.get("pace")) || 1, 5));
+  const wait = (s) => new Promise((ok) => setTimeout(ok, s * 1000));
+  for (const row of card.rows) {
+    if (S.play !== run) return;
+    onDeciding({ index: row.index });
+    await wait(Math.max(0.05, row.delay_s * pace));
+    if (S.play !== run) return;
+    onFrame(row);
+  }
+  if (S.play !== run) return;
+  stop();
+  showDigest(card.digest);
+}
+
 function reset() {
   S.rows.clear();
   S.queue = [];
@@ -123,6 +152,7 @@ function start() {
   if (!S.frames.length) return;
   reset();
   for (const t of document.querySelectorAll(".tile")) t.dataset.state = "pending";
+  if (STATIC) { setRunning(true); playStatic(); return; }
   const q = new URLSearchParams({ id: S.reel.id, mode: S.mode });
   if (params.get("pace")) q.set("pace", params.get("pace"));
   const es = new EventSource("/api/run?" + q);
@@ -136,6 +166,7 @@ function start() {
 }
 
 function stop() {
+  S.play = null;
   if (S.es) S.es.close();
   S.es = null;
   setRunning(false);
@@ -213,7 +244,7 @@ function paintTile(t, row) {
   const { ok } = modelCall(r);
   md.textContent = r.tier === "small" ? "Lite" : "Pro";
   if (ok && r.species) sp.textContent = title(r.species);
-  else { sp.textContent = "queued"; md.classList.add("queued"); t.title = `${MODEL[r.tier]} — queued (Bedrock unavailable)`; }
+  else { sp.textContent = STATIC ? "" : "queued"; md.classList.add("queued"); t.title = `${MODEL[r.tier]} — ${QUEUED}`; }
 }
 
 function bump(id) {
@@ -286,7 +317,7 @@ function renderBurst(r, f) {
   const box = $("burst");
   const frames = (r && r.burst) || null;
   if (!f || f.burst.length < 2) { box.innerHTML = `<span class="k">burst</span><span class="b-none">single frame</span>`; return; }
-  const items = frames || f.burst.map((n) => ({ file_name: n, self: n === f.file_name, thumb: `/thumb/${n}` }));
+  const items = frames || f.burst.map((n) => ({ file_name: n, self: n === f.file_name, thumb: thumbOf(n) }));
   const th = S.status.thresholds;
   box.innerHTML = `<span class="k">burst · ${items.length}</span>` + items.map((b) => {
     const hot = b.escalate != null && b.escalate >= th.escalate_above;
@@ -355,8 +386,8 @@ function setVerdict(row, f, deciding) {
       const what = r.tier === "escalate" ? "alert written" : `<b>${esc(title(r.species || "?"))}</b>${r.species_confidence ? " · " + esc(r.species_confidence) : ""}`;
       calls.append(el("div", "call", `<span class="who ${cls}">${esc(ok.model)}</span><span>${what}</span><span class="num">${usd(ok.cost_usd)} · ${int(ok.latency_ms)} ms</span>`));
     } else {
-      const n = el("div", "call queued", `<span class="who off">${esc(want)}</span><span>queued · Bedrock unavailable</span><span class="num"></span>`);
-      n.title = `${want} — queued (Bedrock unavailable). Estimated ${usd(row.costing.estimated_usd)}.` + (failed ? ` ${failed.error}` : "");
+      const n = el("div", "call queued", `<span class="who off">${esc(want)}</span><span>${QUEUED}</span><span class="num"></span>`);
+      n.title = `${want} — ${QUEUED}. Estimated ${usd(row.costing.estimated_usd)}.` + (failed ? ` ${failed.error}` : "");
       calls.append(n);
     }
   }
@@ -378,7 +409,7 @@ function nextAlert() {
   $("ph-title").textContent = `Person or vehicle at camera ${f.location}, ${f.clock}`;
   $("ph-img").src = f.full;
   const { ok } = modelCall(r);
-  $("ph-text").textContent = ok && r.alert ? r.alert : `Decider is ${Math.round((r.escalate || 0) * 100)}% sure a person or vehicle is in frame. Alert sent with the frame attached; the written note from Nova Lite is queued (Bedrock unavailable).`;
+  $("ph-text").textContent = ok && r.alert ? r.alert : `Decider is ${Math.round((r.escalate || 0) * 100)}% sure a person or vehicle is in frame. Alert sent with the frame attached; the written note from Nova Lite is ${STATIC ? "not written in this replay" : "queued (Bedrock unavailable)"}.`;
   $("ph-meta").textContent = `${f.captured} · ${f.lighting === "night_ir" ? "night IR" : "daylight"} · decided in ${int(r.decider_latency_ms || 0)} ms`;
   $("ph-done").hidden = true;
   $("ph-acts").hidden = false;
@@ -404,7 +435,8 @@ async function onAct(e) {
   for (const x of $("ph-acts").querySelectorAll("button")) x.disabled = true;
   b.classList.add("tapped");
   let note = "";
-  try {
+  if (STATIC) note = recordLocal(b.dataset.act, row);
+  else try {
     const res = await fetch("/api/action", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: b.dataset.act, frame: row.meta.file_name, alert: row.result.alert, escalate: row.result.escalate, mode: S.mode }),
@@ -422,16 +454,26 @@ async function onAct(e) {
   }, 2200);
 }
 
+function recordLocal(act, row) {
+  try {
+    const key = "trailgate.actions";
+    const log = JSON.parse(localStorage.getItem(key) || "[]");
+    log.push({ at: new Date().toISOString(), action: act, frame: row.meta.file_name, camera: row.meta.location, escalate: row.result.escalate });
+    localStorage.setItem(key, JSON.stringify(log.slice(-200)));
+    return " · saved in this browser only (static demo)";
+  } catch { return " · static demo, not saved"; }
+}
+
 function showDigest(d) {
   $("dg-line").innerHTML = `${d.frames} frames: <span class="n-empty">${d.empty} empty skipped</span>, <span class="n-lab">${d.labelled} labelled</span>, <span class="n-alert">${d.alerts} for you</span>.`;
   const sp = Object.entries(d.species).sort((a, b) => b[1] - a[1]);
   $("dg-species").innerHTML = sp.length
     ? sp.map(([k, v]) => `<li>${esc(title(k))}<b>${v}</b></li>`).join("")
-    : `<li class="none">${d.lite} to Nova Lite, ${d.pro} to Nova Pro; species labels queued while Bedrock is unavailable.</li>`;
+    : `<li class="none">${d.lite} to Nova Lite, ${d.pro} to Nova Pro; species labels ${STATIC ? "are not generated in this replay" : "queued while Bedrock is unavailable"}.</li>`;
   $("dg-alerts").innerHTML = d.alert_frames.map((f) => `<figure><img src="${f.thumb}" alt=""><figcaption><b>cam ${esc(f.location)}</b> · ${esc(f.clock)}</figcaption></figure>`).join("") || `<p class="dg-note mono">Nothing for you tonight.</p>`;
   const saved = d.baseline_usd ? Math.round((1 - d.spent_usd / d.baseline_usd) * 100) : 0;
   $("dg-cost").innerHTML = `<b>${usd(d.spent_usd)}</b> <span class="vs">vs Pro ${usd(d.baseline_usd)} · Lite ${usd(d.baseline_lite_usd)}</span>`;
-  $("dg-note").textContent = `${saved}% less than Nova Pro on every frame; ${(d.spent_usd / (d.baseline_lite_usd || 1)).toFixed(1)}× Nova Lite on every frame (estimates). ${d.empty} frames never reached a model. Decider p50 ${d.decider_p50_ms ? int(d.decider_p50_ms) + " ms" : "—"}, run locally.` + (S.total.est > 0 ? " Bedrock spend is estimated from token counts; calls are queued." : "");
+  $("dg-note").textContent = `${saved}% less than Nova Pro on every frame; ${(d.spent_usd / (d.baseline_lite_usd || 1)).toFixed(1)}× Nova Lite on every frame (estimates). ${d.empty} frames never reached a model. Decider p50 ${d.decider_p50_ms ? int(d.decider_p50_ms) + " ms" : "—"}, run locally.` + (S.total.est > 0 ? (STATIC ? " Bedrock spend is estimated from token counts; no Bedrock call was made." : " Bedrock spend is estimated from token counts; calls are queued.") : "");
   setTimeout(() => { if (!S.phoneBusy) $("digest").hidden = false; else waitDigest(); }, 900);
 }
 
