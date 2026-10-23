@@ -30,7 +30,6 @@ Dataset: Caltech Camera Traps, https://lila.science/datasets/caltech-camera-trap
 - `trailgate/pipeline.py`: frame check, burst-aware routing, Bedrock calls by tier. `trailgate/bedrock.py`: Nova Converse calls, prices, token estimates. `trailgate/agent.py`: Strands agent with `archive_empty`, `label_species`, `alert_ranger`, `daily_digest`. `trailgate/server.py` + `trailgate/web/`: ranger console.
 - `examples/parcel_photos.py`: the same pattern in a delivery-photo agent.
 - `results/metrics.md`: every table. `results/decider_answers.jsonl`: every raw Decider answer. `results/missed.md`: missed-animal gallery. `results/label_audit.csv`: frames checked by eye. `results/thresholds.json`: frozen thresholds and the rule behind each.
-- `docs/article.md`: the Builder Center article.
 
 ## Limits
 

@@ -191,7 +191,7 @@ examples/parcel_photos.py   the pattern in a second agent
 scripts/                    data fetch, threshold freezing, evaluation, charts, Nova baseline
 results/                    raw Decider answers, metrics, charts, missed-animal gallery, label audit
 data/manifests/             the exact frames in each split
-docs/                       article, video script, submission kit, images
+docs/images/                cover image and architecture diagram
 ```
 
 ## Data and licence
