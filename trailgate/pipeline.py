@@ -1,4 +1,4 @@
-"""Deterministic triage for one frame: code check, one Decider call, then only the Bedrock call the tier needs."""
+"""Deterministic triage: code check, one Decider call per frame, the burst rule, then only the Bedrock calls each tier needs."""
 
 from __future__ import annotations
 
@@ -64,33 +64,65 @@ class Triage:
             return Route(Tier.LARGE, 0.5, None, "unknown", 0.0, reason, 0.0)
 
     def run(self, path: str | Path, label: str | None = None, lighting: str | None = None) -> FrameResult:
-        name = Path(path).name
-        check = frames.check(path)
-        if not check.ok:
+        return self.run_burst([path], [label], [lighting])[0]
+
+    def run_burst(
+        self,
+        paths: list[str | Path],
+        labels: list[str | None] | None = None,
+        lightings: list[str | None] | None = None,
+    ) -> list[FrameResult]:
+        """Route every frame of one camera burst, apply the burst rule, then call Bedrock per frame by tier.
+
+        A frame is skipped only if no frame in the burst reaches `skip_below`; if any frame
+        escalates, the whole burst escalates and the ranger gets one alert for it.
+        """
+        labels = labels or [None] * len(paths)
+        lightings = lightings or [None] * len(paths)
+        checks = [frames.check(p) for p in paths]
+        data = [frames.load(p) if c.ok else b"" for p, c in zip(paths, checks, strict=True)]
+        routed = self.router.decide_burst([self.route(d) for d, c in zip(data, checks, strict=True) if c.ok])
+        routes: list[Route | None] = [routed.pop(0) if c.ok else None for c in checks]
+        results = [
+            self._result(Path(p).name, c, r, label, lighting)
+            for p, c, r, label, lighting in zip(paths, checks, routes, labels, lightings, strict=True)
+        ]
+        escalated = [i for i, r in enumerate(routes) if r is not None and r.tier is Tier.ESCALATE]
+        if escalated:
+            top = max(escalated, key=lambda i: routes[i].escalate or 0.0)
+            self._burst_alert(results[top], str(paths[top]), data[top], routes[top], len(paths))
+        if self.bedrock:
+            for result, image, route in zip(results, data, routes, strict=True):
+                if route is None or route.tier is Tier.SKIP:
+                    continue
+                if route.tier is Tier.ESCALATE and not self.label_escalations:
+                    continue
+                species, confidence, call = nova.label_species(image, "small" if route.tier is Tier.SMALL else "large")
+                result.species, result.species_confidence = species, confidence
+                result.calls.append(call)
+        return results
+
+    @staticmethod
+    def _result(name: str, check: frames.FrameCheck, route: Route | None, label: str | None, lighting: str | None) -> FrameResult:
+        if route is None:
             reason = f"code check: {check.reason}; Decider not asked"
             return FrameResult(name, Tier.SKIP.value, 0.0, None, "n/a", reason, 0.0, label=label, lighting=lighting)
-        data = frames.load(path)
         lighting = lighting or ("night_ir" if check.infrared else "day")
-        route = self.route(data)
-        result = FrameResult(
+        return FrameResult(
             name, route.tier.value, route.present, route.escalate, route.difficulty, route.reason, route.latency_ms,
             label=label, lighting=lighting,
         )
-        if not self.bedrock or route.tier is Tier.SKIP:
-            if route.tier is Tier.ESCALATE:
-                self._alert(result, str(path), nova.fallback_alert(name, route))
-            return result
-        if route.tier is Tier.ESCALATE:
-            call = nova.write_alert(data, route)
+
+    def _burst_alert(self, result: FrameResult, path: str, image: bytes, route: Route, size: int) -> None:
+        text = ""
+        if self.bedrock:
+            call = nova.write_alert(image, route)
             result.calls.append(call)
-            self._alert(result, str(path), call.text if not call.error and call.text else nova.fallback_alert(name, route))
-            if not self.label_escalations:
-                return result
-        tier = "small" if route.tier is Tier.SMALL else "large"
-        species, confidence, call = nova.label_species(data, tier)
-        result.species, result.species_confidence = species, confidence
-        result.calls.append(call)
-        return result
+            text = "" if call.error else call.text
+        text = text or nova.fallback_alert(result.frame, route)
+        if size > 1:
+            text = f"{text} (burst of {size} frames)"
+        self._alert(result, path, text)
 
     def run_many(self, paths: list[str | Path]) -> list[FrameResult]:
         return [self.run(p) for p in find_frames(paths)]

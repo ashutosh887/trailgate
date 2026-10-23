@@ -4,6 +4,10 @@
 a species label on each, and PresenceRouter decides per call: empty frames are denied
 before any model runs, the rest get the right-sized Nova model, people and vehicles are
 flagged for alert_ranger.
+
+The agent routes frame by frame. The burst rule (skip a frame only if no frame in its
+burst reaches skip_below, one alert per escalated burst) lives in `Triage.run_burst`,
+which `python -m trailgate run` uses with frames grouped by `trailgate.bursts`.
 """
 
 from __future__ import annotations
