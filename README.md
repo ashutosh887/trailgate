@@ -4,6 +4,8 @@
 
 Built for the AWS Builder Center *Agent Experience Hackathon: Strands Decider*. Tags: `#strands-decider-2b` `#model-routing`.
 
+**Read the build story.** [Most camera-trap photos show nothing. I let a 2B model decide which ones a vision model sees](https://builder.aws.com/content/3L6iEoiyZZij0m5GmCDEIyg6kto/most-camera-trap-photos-show-nothing-i-let-a-2b-model-decide-which-ones-a-vision-model-sees), on AWS Builder Center.
+
 **Try it in a browser.** https://trytrailgate.vercel.app replays real Decider answers on held-out frames in the ranger console. It's a static replay, and it shows Bedrock costs as estimates. To run Decider live you need the local setup below.
 
 ![Six held-out Caltech Camera Traps frames, each stamped with the route Trailgate gave it](assets/cover.png)
