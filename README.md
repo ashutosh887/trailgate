@@ -2,7 +2,7 @@
 
 **A 2B model decides which camera-trap photos need a vision model.** Trailgate skips empty frames without calling any model, sends animals to the right-sized Amazon Nova model, and hands a person or vehicle to the ranger.
 
-Built for the AWS Builder Center *Agent Experience Hackathon: Strands Decider*. Tags: `#strands-decider-2b` `#model-routing`.
+Built for the AWS Builder Center *Agent Experience Hackathon: Strands Decider* ([project page](https://builder.aws.com/project/3L6f1pzmmKxbR582fuVZ8Fmzraw/trailgate-lets-a-2b-model-decide-which-camera-trap-photos-need-a-vision-model)). Tags: `#strands-decider-2b` `#model-routing`.
 
 **Read the build story.** [Most camera-trap photos show nothing. I let a 2B model decide which ones a vision model sees](https://builder.aws.com/content/3L6iEoiyZZij0m5GmCDEIyg6kto/most-camera-trap-photos-show-nothing-i-let-a-2b-model-decide-which-ones-a-vision-model-sees), on AWS Builder Center.
 
